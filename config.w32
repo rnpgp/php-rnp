@@ -1,0 +1,13 @@
+ARG_WITH("rnp", "RNP support", "no");
+
+if (PHP_RNP != "no") {
+	if (CHECK_LIB("librnp_a.lib;librnp.lib", "rnp", PHP_RNP) &&
+			CHECK_HEADER_ADD_INCLUDE("rnp/rnp.h", "CFLAGS_RNP")) {
+		EXTENSION("rnp", "rnp.c", null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+		AC_DEFINE('HAVE_RNP', 1, 'Have RNP library');
+	} else {
+		WARNING("rnp not enabled; libraries and headers not found");
+	}
+}
+ARG_ENABLE('rnp', 'rnp support', 'no');
+
