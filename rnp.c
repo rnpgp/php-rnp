@@ -36,6 +36,7 @@
 #include "php_rnp.h"
 #include "rnp_arginfo.h"
 #include <rnp/rnp.h>
+#include <rnp/rnp_err.h>
 
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
@@ -67,6 +68,27 @@ PHP_FUNCTION(rnp_backend_version)
 
 	version = rnp_backend_version();
 	retval = zend_string_init(version, strlen(version), 0);
+
+	RETURN_STR(retval);
+}
+
+PHP_FUNCTION(rnp_supported_features)
+{
+	zend_string *retval;
+	zend_string *type;
+	char *result;
+
+	ZEND_PARSE_PARAMETERS_START(1,1);
+		Z_PARAM_STR(type)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (rnp_supported_features(ZSTR_VAL(type), &result) != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	retval = zend_string_init(result, strlen(result), 0);
+	rnp_buffer_destroy(result);
 
 	RETURN_STR(retval);
 }
