@@ -93,6 +93,33 @@ PHP_FUNCTION(rnp_supported_features)
 	RETURN_STR(retval);
 }
 
+PHP_FUNCTION(rnp_version_string)
+{
+	zend_string *retval;
+	const char *version;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	version = rnp_version_string();
+	retval = zend_string_init(version, strlen(version), 0);
+
+	RETURN_STR(retval);
+}
+
+PHP_FUNCTION(rnp_version_string_full)
+{
+	zend_string *retval;
+	const char *version;
+
+	ZEND_PARSE_PARAMETERS_NONE();
+
+	version = rnp_version_string_full();
+	retval = zend_string_init(version, strlen(version), 0);
+
+	RETURN_STR(retval);
+}
+
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
