@@ -119,6 +119,47 @@ PHP_FUNCTION(rnp_version_string_full)
 	RETURN_STR(retval);
 }
 
+PHP_FUNCTION(rnp_ffi_create)
+{
+	zend_string *pub_format;
+	zend_string *sec_format;
+	rnp_ffi_t ffi;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_STR(pub_format);
+		Z_PARAM_STR(sec_format);
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (rnp_ffi_create(&ffi, ZSTR_VAL(pub_format), ZSTR_VAL(sec_format)) != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	object_init_ex(return_value, rnp_ffi_t_ce);
+	pffi = Z_FFI_P(return_value);
+	pffi->ffi = ffi;
+}
+
+PHP_FUNCTION(rnp_ffi_destroy)
+{
+	zval *zffi;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce);
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+        if (!pffi->ffi)
+	{
+		zend_throw_error(NULL, "%s(): Attempt to destroy already destroyed FFI object!", get_active_function_name());
+		RETURN_THROWS();
+	}
+
+	rnp_ffi_destroy(pffi->ffi);
+	pffi->ffi = NULL;
+}
 
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
@@ -140,12 +181,51 @@ PHP_MINFO_FUNCTION(rnp)
 }
 /* }}} */
 
+
+zend_class_entry *rnp_ffi_t_ce;
+static zend_object_handlers rnp_object_handlers;
+
+static zend_object *rnp_create_object(zend_class_entry *class_type) {
+	php_rnp_ffi_t *intern = zend_object_alloc(sizeof(php_rnp_ffi_t), class_type);
+
+	zend_object_std_init(&intern->std, class_type);
+	intern->std.handlers = &rnp_object_handlers;
+
+	return &intern->std;
+}
+
+static void rnp_free_obj(zend_object *object)
+{
+	php_rnp_ffi_t *intern = rnp_ffi_t_from_obj(object);
+	rnp_ffi_destroy(intern->ffi);
+	zend_object_std_dtor(&intern->std);
+}
+
+static zend_function *rnp_get_constructor(zend_object *object)
+{
+	zend_throw_error(NULL, "Cannot directly construct rnp_ffi_t, use rnp_ffi_create() instead");
+	return NULL;
+}
+
+PHP_MINIT_FUNCTION(rnp)
+{
+	rnp_ffi_t_ce = register_class_rnp_ffi_t();
+	rnp_ffi_t_ce->create_object = rnp_create_object;
+
+	memcpy(&rnp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+        rnp_object_handlers.offset = XtOffsetOf(php_rnp_ffi_t, std);
+	rnp_object_handlers.clone_obj = NULL;
+	rnp_object_handlers.free_obj = rnp_free_obj;
+	rnp_object_handlers.get_constructor = rnp_get_constructor;
+}
+
+
 /* {{{ rnp_module_entry */
 zend_module_entry rnp_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"rnp",					/* Extension name */
 	ext_functions,					/* zend_function_entry */
-	NULL,							/* PHP_MINIT - Module initialization */
+	PHP_MINIT(rnp),							/* PHP_MINIT - Module initialization */
 	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
 	PHP_RINIT(rnp),			/* PHP_RINIT - Request initialization */
 	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
