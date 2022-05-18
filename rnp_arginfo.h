@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 211638c72f59a905f986e925cde0b7e8f812d5e1 */
+ * Stub hash: d1f0fe53cfd8f90ca4ee2f9f0c2acd1a390a91f4 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -23,6 +23,41 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_ffi_destroy, 0, 1, IS_VOID, 
 	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_load_keys, 0, 4, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, input, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_load_keys_from_path, 0, 4, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, input_path, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_save_keys, 0, 4, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(1, output, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_save_keys_to_path, 0, 4, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, output_path, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_dump_packets, 0, 2, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, input, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_rnp_dump_packets_to_json arginfo_rnp_dump_packets
+
 
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
@@ -31,6 +66,12 @@ ZEND_FUNCTION(rnp_version_string);
 ZEND_FUNCTION(rnp_version_string_full);
 ZEND_FUNCTION(rnp_ffi_create);
 ZEND_FUNCTION(rnp_ffi_destroy);
+ZEND_FUNCTION(rnp_load_keys);
+ZEND_FUNCTION(rnp_load_keys_from_path);
+ZEND_FUNCTION(rnp_save_keys);
+ZEND_FUNCTION(rnp_save_keys_to_path);
+ZEND_FUNCTION(rnp_dump_packets);
+ZEND_FUNCTION(rnp_dump_packets_to_json);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -41,6 +82,12 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_version_string_full, arginfo_rnp_version_string_full)
 	ZEND_FE(rnp_ffi_create, arginfo_rnp_ffi_create)
 	ZEND_FE(rnp_ffi_destroy, arginfo_rnp_ffi_destroy)
+	ZEND_FE(rnp_load_keys, arginfo_rnp_load_keys)
+	ZEND_FE(rnp_load_keys_from_path, arginfo_rnp_load_keys_from_path)
+	ZEND_FE(rnp_save_keys, arginfo_rnp_save_keys)
+	ZEND_FE(rnp_save_keys_to_path, arginfo_rnp_save_keys_to_path)
+	ZEND_FE(rnp_dump_packets, arginfo_rnp_dump_packets)
+	ZEND_FE(rnp_dump_packets_to_json, arginfo_rnp_dump_packets_to_json)
 	ZEND_FE_END
 };
 

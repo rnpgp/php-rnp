@@ -127,8 +127,8 @@ PHP_FUNCTION(rnp_ffi_create)
 	php_rnp_ffi_t *pffi;
 
 	ZEND_PARSE_PARAMETERS_START(2, 2);
-		Z_PARAM_STR(pub_format);
-		Z_PARAM_STR(sec_format);
+		Z_PARAM_STR(pub_format)
+		Z_PARAM_STR(sec_format)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (rnp_ffi_create(&ffi, ZSTR_VAL(pub_format), ZSTR_VAL(sec_format)) != RNP_SUCCESS)
@@ -159,6 +159,263 @@ PHP_FUNCTION(rnp_ffi_destroy)
 
 	rnp_ffi_destroy(pffi->ffi);
 	pffi->ffi = NULL;
+}
+
+PHP_FUNCTION(rnp_load_keys)
+{
+	zval *zffi;
+	zend_string *format;
+	zend_string *input;
+	zend_long flags;
+
+	php_rnp_ffi_t *pffi;
+	rnp_result_t ret;
+	rnp_input_t mem_input;
+
+	ZEND_PARSE_PARAMETERS_START(4, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(format)
+		Z_PARAM_STR(input)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	ret = rnp_load_keys(pffi->ffi, ZSTR_VAL(format), mem_input, flags);
+
+	(void) rnp_input_destroy(mem_input);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_load_keys_from_path)
+{
+	zval *zffi;
+	zend_string *format;
+	zend_string *input_path;
+	zend_long flags;
+
+	php_rnp_ffi_t *pffi;
+	rnp_result_t ret;
+	rnp_input_t path_input;
+
+	ZEND_PARSE_PARAMETERS_START(4, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(format)
+		Z_PARAM_PATH_STR(input_path)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_path(&path_input, ZSTR_VAL(input_path));
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	ret = rnp_load_keys(pffi->ffi, ZSTR_VAL(format), path_input, flags);
+
+	(void) rnp_input_destroy(path_input);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_save_keys)
+{
+	zval *zffi;
+	zend_string *format;
+	zval *output_ref;
+	zend_long flags;
+
+	php_rnp_ffi_t *pffi;
+	rnp_result_t ret;
+	rnp_output_t mem_output;
+
+	ZEND_PARSE_PARAMETERS_START(4, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(format)
+		Z_PARAM_ZVAL(output_ref)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	ret = rnp_save_keys(pffi->ffi, ZSTR_VAL(format), mem_output, flags);
+
+	if (ret == RNP_SUCCESS)
+	{
+		uint8_t *buf;
+		size_t len;
+		ret = rnp_output_memory_get_buf(mem_output, &buf, &len, false);
+
+		if (ret == RNP_SUCCESS)
+		{
+			ZEND_TRY_ASSIGN_REF_STRINGL(output_ref, buf, len);
+		}
+	}
+
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_save_keys_to_path)
+{
+	zval *zffi;
+	zend_string *format;
+	zend_string *output_path;
+	zend_long flags;
+
+	php_rnp_ffi_t *pffi;
+	rnp_result_t ret;
+	rnp_output_t path_output;
+
+	ZEND_PARSE_PARAMETERS_START(4, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(format)
+		Z_PARAM_PATH_STR(output_path)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_output_to_path(&path_output, ZSTR_VAL(output_path));
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	ret = rnp_save_keys(pffi->ffi, ZSTR_VAL(format), path_output, flags);
+
+	(void) rnp_output_destroy(path_output);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_dump_packets)
+{
+	zend_string *input;
+	zend_long flags;
+
+	rnp_result_t ret;
+	rnp_input_t mem_input;
+	rnp_output_t mem_output;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_STR(input)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+
+	if (ret != RNP_SUCCESS)
+	{
+		rnp_input_destroy(mem_input);
+		RETURN_FALSE;
+	}
+
+	ret = rnp_dump_packets_to_output(mem_input, mem_output, flags);
+
+	if (ret == RNP_SUCCESS)
+	{
+		uint8_t *buf;
+		size_t len;
+		ret = rnp_output_memory_get_buf(mem_output, &buf, &len, false);
+
+		if (ret == RNP_SUCCESS)
+		{
+			ZVAL_STRINGL(return_value, buf, len);
+		}
+	}
+
+	(void) rnp_input_destroy(mem_input);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_dump_packets_to_json)
+{
+	zend_string *input;
+	zend_long flags;
+
+	rnp_result_t ret;
+	rnp_input_t mem_input;
+	char *result;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_STR(input)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
+
+	ret = rnp_dump_packets_to_json(mem_input, flags, &result);
+
+	if (ret == RNP_SUCCESS)
+	{
+		ZVAL_STRING(return_value, result);
+		rnp_buffer_destroy(result);
+	}
+
+	(void) rnp_input_destroy(mem_input);
+
+	if (ret != RNP_SUCCESS)
+	{
+		RETURN_FALSE;
+	}
 }
 
 /* {{{ PHP_RINIT_FUNCTION */
@@ -217,6 +474,28 @@ PHP_MINIT_FUNCTION(rnp)
 	rnp_object_handlers.clone_obj = NULL;
 	rnp_object_handlers.free_obj = rnp_free_obj;
 	rnp_object_handlers.get_constructor = rnp_get_constructor;
+
+	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_PUBLIC_KEYS", RNP_LOAD_SAVE_PUBLIC_KEYS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_SECRET_KEYS", RNP_LOAD_SAVE_SECRET_KEYS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_PERMISSIVE", RNP_LOAD_SAVE_PERMISSIVE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_SINGLE", RNP_LOAD_SAVE_SINGLE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_BASE64", RNP_LOAD_SAVE_BASE64, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_SYMM_ALG", RNP_FEATURE_SYMM_ALG, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_AEAD_ALG", RNP_FEATURE_AEAD_ALG, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_PROT_MODE", RNP_FEATURE_PROT_MODE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_PK_ALG", RNP_FEATURE_PK_ALG, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_HASH_ALG", RNP_FEATURE_HASH_ALG, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_COMP_ALG", RNP_FEATURE_COMP_ALG, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_FEATURE_CURVE", RNP_FEATURE_CURVE, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_DUMP_MPI", RNP_DUMP_MPI, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_DUMP_RAW", RNP_DUMP_RAW, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_DUMP_GRIP", RNP_DUMP_GRIP, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_MPI", RNP_JSON_DUMP_MPI, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_RAW", RNP_JSON_DUMP_RAW, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_GRIP", RNP_JSON_DUMP_GRIP, CONST_CS | CONST_PERSISTENT);
 }
 
 
