@@ -31,3 +31,5 @@ function rnp_save_keys_to_path(rnp_ffi_t $ffi, string $format, string $output_pa
 function rnp_dump_packets(string $input, int $flags): string|false {}
 
 function rnp_dump_packets_to_json(string $input, int $flags): string|false {}
+
+function rnp_op_generate_key(rnp_ffi_t $ffi, string $userid, string $key_alg, string $sub_alg = null, array $options = []): string|false {}

@@ -418,6 +418,167 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 	}
 }
 
+PHP_FUNCTION(rnp_op_generate_key)
+{
+	zval *zffi;
+	zend_string *userid;
+	zend_string *key_alg;
+	zend_string *sub_alg;
+	zval *options = NULL;
+
+	rnp_op_generate_t op = NULL;
+	rnp_op_generate_t subop = NULL;
+	rnp_key_handle_t  primary = NULL;
+	rnp_key_handle_t  subkey = NULL;
+	rnp_result_t      ret = RNP_ERROR_KEY_GENERATION;
+	php_rnp_ffi_t    *pffi;
+	char             *primary_fprint = NULL;
+	bool              gen_subkey = false;
+	bool              have_options = false;
+	const char       *password = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 5);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(userid)
+		Z_PARAM_STR(key_alg)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR(sub_alg)
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	if ((ret = rnp_op_generate_create(&op, pffi->ffi, ZSTR_VAL(key_alg)))) {
+		RETURN_FALSE;
+	}
+	if ((ret = rnp_op_generate_set_userid(op, ZSTR_VAL(userid)))) {
+		goto done;
+	}
+
+	if (ZEND_NUM_ARGS() > 3) {
+		gen_subkey = true;
+	}
+	if (ZEND_NUM_ARGS() > 4 && options && Z_TYPE_P(options) == IS_ARRAY) {
+		zval *data;
+
+		have_options = true;
+
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "bits", sizeof("bits") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_LONG) {
+			if ((ret = rnp_op_generate_set_bits(op, Z_LVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_STRING) {
+			if ((ret = rnp_op_generate_set_hash(op, Z_STRVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "dsa_qbits", sizeof("dsa_qbits") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_LONG) {
+			if ((ret = rnp_op_generate_set_dsa_qbits(op, Z_LVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "curve", sizeof("curve") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_STRING) {
+			if ((ret = rnp_op_generate_set_curve(op, Z_STRVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "password", sizeof("password") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_STRING) {
+			password = Z_STRVAL_P(data);
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "expiration", sizeof("expiration") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_LONG) {
+			if ((ret = rnp_op_generate_set_expiration(op, Z_LVAL_P(data)))) {
+				goto done;
+			}
+		}
+	}
+
+	if ((ret = rnp_op_generate_execute(op))) {
+		goto done;
+	}
+	if ((ret = rnp_op_generate_get_key(op, &primary))) {
+		goto done;
+	}
+	if (!gen_subkey) {
+		goto done;
+	}
+	if ((ret = rnp_op_generate_subkey_create(&subop, pffi->ffi, primary, ZSTR_VAL(sub_alg)))) {
+		goto done;
+	}
+
+	if (have_options) {
+		zval *data;
+
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "sub_bits", sizeof("sub_bits") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_LONG) {
+			if ((ret = rnp_op_generate_set_bits(subop, Z_LVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "sub_hash", sizeof("sub_hash") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_STRING) {
+			if ((ret = rnp_op_generate_set_hash(subop, Z_STRVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "sub_curve", sizeof("sub_curve") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_STRING) {
+			if ((ret = rnp_op_generate_set_curve(subop, Z_STRVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "expiration", sizeof("expiration") - 1)) != NULL &&
+		Z_TYPE_P(data) == IS_LONG) {
+			if ((ret = rnp_op_generate_set_expiration(subop, Z_LVAL_P(data)))) {
+				goto done;
+			}
+		}
+	}
+
+	if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
+		goto done;
+	}
+	if ((ret = rnp_op_generate_execute(subop))) {
+		goto done;
+	}
+	if ((ret = rnp_op_generate_get_key(subop, &subkey))) {
+		goto done;
+	}
+done:
+	if (!ret && password) {
+		ret = rnp_key_protect(primary, password, NULL, NULL, NULL, 0);
+	}
+	if (ret && primary) {
+		rnp_key_remove(primary, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
+	}
+	if (ret && subkey) {
+		rnp_key_remove(subkey, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
+	}
+	rnp_op_generate_destroy(op);
+	rnp_op_generate_destroy(subop);
+	rnp_key_handle_destroy(subkey);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	if ((ret = rnp_key_get_fprint(primary, &primary_fprint))) {
+		rnp_key_handle_destroy(primary);
+		RETURN_FALSE;
+	}
+
+	ZVAL_STRINGL(return_value, primary_fprint, strlen(primary_fprint));
+
+	rnp_buffer_destroy(primary_fprint);
+	rnp_key_handle_destroy(primary);
+}
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
