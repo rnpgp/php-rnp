@@ -13,9 +13,9 @@ $ffi = rnp_ffi_create('GPG', 'GPG');
 rnp_ffi_destroy($ffi);
 ?>
 --EXPECTF--
-object(rnp_ffi_t)#1 (0) {
+object(RnpFFI)#1 (0) {
 }
-object(rnp_ffi_t)#1 (0) {
+object(RnpFFI)#1 (0) {
 }
 bool(false)
 bool(false)

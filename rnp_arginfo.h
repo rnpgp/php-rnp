@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9e953ca2872382bbe94073b1a979cc06a6e3c810 */
+ * Stub hash: 5dfd0aa1e521c94c593b824ade129065d1f75da1 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -14,38 +14,38 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_rnp_version_string_full arginfo_rnp_backend_string
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_rnp_ffi_create, 0, 2, rnp_ffi_t, MAY_BE_FALSE)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_rnp_ffi_create, 0, 2, RnpFFI, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO(0, pub_format, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, sec_format, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_ffi_destroy, 0, 1, IS_VOID, 0)
-	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_load_keys, 0, 4, _IS_BOOL, 0)
-	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, input, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_load_keys_from_path, 0, 4, _IS_BOOL, 0)
-	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, input_path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_save_keys, 0, 4, _IS_BOOL, 0)
-	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(1, output, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_save_keys_to_path, 0, 4, _IS_BOOL, 0)
-	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, output_path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
@@ -59,7 +59,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_rnp_dump_packets_to_json arginfo_rnp_dump_packets
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_generate_key, 0, 3, MAY_BE_STRING|MAY_BE_FALSE)
-	ZEND_ARG_OBJ_INFO(0, ffi, rnp_ffi_t, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, userid, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, key_alg, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, sub_alg, IS_STRING, 0, "null")
@@ -102,15 +102,15 @@ static const zend_function_entry ext_functions[] = {
 };
 
 
-static const zend_function_entry class_rnp_ffi_t_methods[] = {
+static const zend_function_entry class_RnpFFI_methods[] = {
 	ZEND_FE_END
 };
 
-static zend_class_entry *register_class_rnp_ffi_t(void)
+static zend_class_entry *register_class_RnpFFI(void)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_CLASS_ENTRY(ce, "rnp_ffi_t", class_rnp_ffi_t_methods);
+	INIT_CLASS_ENTRY(ce, "RnpFFI", class_RnpFFI_methods);
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
 	class_entry->ce_flags |= ZEND_ACC_FINAL;
 

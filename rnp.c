@@ -607,7 +607,7 @@ static zend_function *rnp_get_constructor(zend_object *object)
 
 PHP_MINIT_FUNCTION(rnp)
 {
-	rnp_ffi_t_ce = register_class_rnp_ffi_t();
+	rnp_ffi_t_ce = register_class_RnpFFI();
 	rnp_ffi_t_ce->create_object = rnp_create_object;
 
 	memcpy(&rnp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
