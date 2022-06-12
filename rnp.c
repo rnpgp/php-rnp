@@ -82,8 +82,7 @@ PHP_FUNCTION(rnp_supported_features)
 		Z_PARAM_STR(type)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (rnp_supported_features(ZSTR_VAL(type), &result) != RNP_SUCCESS)
-	{
+	if (rnp_supported_features(ZSTR_VAL(type), &result) != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -131,8 +130,7 @@ PHP_FUNCTION(rnp_ffi_create)
 		Z_PARAM_STR(sec_format)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (rnp_ffi_create(&ffi, ZSTR_VAL(pub_format), ZSTR_VAL(sec_format)) != RNP_SUCCESS)
-	{
+	if (rnp_ffi_create(&ffi, ZSTR_VAL(pub_format), ZSTR_VAL(sec_format)) != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -151,8 +149,7 @@ PHP_FUNCTION(rnp_ffi_destroy)
 	ZEND_PARSE_PARAMETERS_END();
 
 	pffi = Z_FFI_P(zffi);
-        if (!pffi->ffi)
-	{
+	if (!pffi->ffi) {
 		zend_throw_error(NULL, "%s(): Attempt to destroy already destroyed FFI object!", get_active_function_name());
 		RETURN_THROWS();
 	}
@@ -183,8 +180,7 @@ PHP_FUNCTION(rnp_load_keys)
 
 	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -192,8 +188,7 @@ PHP_FUNCTION(rnp_load_keys)
 
 	(void) rnp_input_destroy(mem_input);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -222,8 +217,7 @@ PHP_FUNCTION(rnp_load_keys_from_path)
 
 	ret = rnp_input_from_path(&path_input, ZSTR_VAL(input_path));
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -231,8 +225,7 @@ PHP_FUNCTION(rnp_load_keys_from_path)
 
 	(void) rnp_input_destroy(path_input);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -261,29 +254,25 @@ PHP_FUNCTION(rnp_save_keys)
 
 	ret = rnp_output_to_memory(&mem_output, 0);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
 	ret = rnp_save_keys(pffi->ffi, ZSTR_VAL(format), mem_output, flags);
 
-	if (ret == RNP_SUCCESS)
-	{
+	if (ret == RNP_SUCCESS) {
 		uint8_t *buf;
 		size_t len;
 		ret = rnp_output_memory_get_buf(mem_output, &buf, &len, false);
 
-		if (ret == RNP_SUCCESS)
-		{
+		if (ret == RNP_SUCCESS) {
 			ZEND_TRY_ASSIGN_REF_STRINGL(output_ref, buf, len);
 		}
 	}
 
 	(void) rnp_output_destroy(mem_output);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -312,8 +301,7 @@ PHP_FUNCTION(rnp_save_keys_to_path)
 
 	ret = rnp_output_to_path(&path_output, ZSTR_VAL(output_path));
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -321,8 +309,7 @@ PHP_FUNCTION(rnp_save_keys_to_path)
 
 	(void) rnp_output_destroy(path_output);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -345,29 +332,25 @@ PHP_FUNCTION(rnp_dump_packets)
 
 	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
 	ret = rnp_output_to_memory(&mem_output, 0);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		rnp_input_destroy(mem_input);
 		RETURN_FALSE;
 	}
 
 	ret = rnp_dump_packets_to_output(mem_input, mem_output, flags);
 
-	if (ret == RNP_SUCCESS)
-	{
+	if (ret == RNP_SUCCESS) {
 		uint8_t *buf;
 		size_t len;
 		ret = rnp_output_memory_get_buf(mem_output, &buf, &len, false);
 
-		if (ret == RNP_SUCCESS)
-		{
+		if (ret == RNP_SUCCESS) {
 			ZVAL_STRINGL(return_value, buf, len);
 		}
 	}
@@ -375,8 +358,7 @@ PHP_FUNCTION(rnp_dump_packets)
 	(void) rnp_input_destroy(mem_input);
 	(void) rnp_output_destroy(mem_output);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 }
@@ -397,23 +379,20 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 
 	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
 	ret = rnp_dump_packets_to_json(mem_input, flags, &result);
 
-	if (ret == RNP_SUCCESS)
-	{
+	if (ret == RNP_SUCCESS) {
 		ZVAL_STRING(return_value, result);
 		rnp_buffer_destroy(result);
 	}
 
 	(void) rnp_input_destroy(mem_input);
 
-	if (ret != RNP_SUCCESS)
-	{
+	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 }
@@ -464,35 +443,35 @@ PHP_FUNCTION(rnp_op_generate_key)
 		have_options = true;
 
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "bits", sizeof("bits") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_LONG) {
+		        Z_TYPE_P(data) == IS_LONG) {
 			if ((ret = rnp_op_generate_set_bits(op, Z_LVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_STRING) {
+		        Z_TYPE_P(data) == IS_STRING) {
 			if ((ret = rnp_op_generate_set_hash(op, Z_STRVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "dsa_qbits", sizeof("dsa_qbits") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_LONG) {
+		        Z_TYPE_P(data) == IS_LONG) {
 			if ((ret = rnp_op_generate_set_dsa_qbits(op, Z_LVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "curve", sizeof("curve") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_STRING) {
+		        Z_TYPE_P(data) == IS_STRING) {
 			if ((ret = rnp_op_generate_set_curve(op, Z_STRVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "password", sizeof("password") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_STRING) {
+		        Z_TYPE_P(data) == IS_STRING) {
 			password = Z_STRVAL_P(data);
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "expiration", sizeof("expiration") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_LONG) {
+		        Z_TYPE_P(data) == IS_LONG) {
 			if ((ret = rnp_op_generate_set_expiration(op, Z_LVAL_P(data)))) {
 				goto done;
 			}
@@ -516,25 +495,25 @@ PHP_FUNCTION(rnp_op_generate_key)
 		zval *data;
 
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "sub_bits", sizeof("sub_bits") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_LONG) {
+		        Z_TYPE_P(data) == IS_LONG) {
 			if ((ret = rnp_op_generate_set_bits(subop, Z_LVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "sub_hash", sizeof("sub_hash") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_STRING) {
+		        Z_TYPE_P(data) == IS_STRING) {
 			if ((ret = rnp_op_generate_set_hash(subop, Z_STRVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "sub_curve", sizeof("sub_curve") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_STRING) {
+		        Z_TYPE_P(data) == IS_STRING) {
 			if ((ret = rnp_op_generate_set_curve(subop, Z_STRVAL_P(data)))) {
 				goto done;
 			}
 		}
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "expiration", sizeof("expiration") - 1)) != NULL &&
-		Z_TYPE_P(data) == IS_LONG) {
+		        Z_TYPE_P(data) == IS_LONG) {
 			if ((ret = rnp_op_generate_set_expiration(subop, Z_LVAL_P(data)))) {
 				goto done;
 			}
@@ -603,7 +582,8 @@ PHP_MINFO_FUNCTION(rnp)
 zend_class_entry *rnp_ffi_t_ce;
 static zend_object_handlers rnp_object_handlers;
 
-static zend_object *rnp_create_object(zend_class_entry *class_type) {
+static zend_object *rnp_create_object(zend_class_entry *class_type)
+{
 	php_rnp_ffi_t *intern = zend_object_alloc(sizeof(php_rnp_ffi_t), class_type);
 
 	zend_object_std_init(&intern->std, class_type);
@@ -631,7 +611,7 @@ PHP_MINIT_FUNCTION(rnp)
 	rnp_ffi_t_ce->create_object = rnp_create_object;
 
 	memcpy(&rnp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-        rnp_object_handlers.offset = XtOffsetOf(php_rnp_ffi_t, std);
+	rnp_object_handlers.offset = XtOffsetOf(php_rnp_ffi_t, std);
 	rnp_object_handlers.clone_obj = NULL;
 	rnp_object_handlers.free_obj = rnp_free_obj;
 	rnp_object_handlers.get_constructor = rnp_get_constructor;
