@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5dfd0aa1e521c94c593b824ade129065d1f75da1 */
+ * Stub hash: 60186aded39984130651605ab741f961e0220789 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -66,6 +66,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_generate_key, 0, 3, MAY_B
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_ffi_set_pass_provider, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, password_callback, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
 
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
@@ -81,6 +86,7 @@ ZEND_FUNCTION(rnp_save_keys_to_path);
 ZEND_FUNCTION(rnp_dump_packets);
 ZEND_FUNCTION(rnp_dump_packets_to_json);
 ZEND_FUNCTION(rnp_op_generate_key);
+ZEND_FUNCTION(rnp_ffi_set_pass_provider);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -98,6 +104,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_dump_packets, arginfo_rnp_dump_packets)
 	ZEND_FE(rnp_dump_packets_to_json, arginfo_rnp_dump_packets_to_json)
 	ZEND_FE(rnp_op_generate_key, arginfo_rnp_op_generate_key)
+	ZEND_FE(rnp_ffi_set_pass_provider, arginfo_rnp_ffi_set_pass_provider)
 	ZEND_FE_END
 };
 

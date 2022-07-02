@@ -414,6 +414,7 @@ PHP_FUNCTION(rnp_op_generate_key)
 	char             *primary_fprint = NULL;
 	bool              gen_subkey = false;
 	bool              have_options = false;
+	bool              request_password = false;
 	const char       *password = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(3, 5);
@@ -463,6 +464,13 @@ PHP_FUNCTION(rnp_op_generate_key)
 		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "curve", sizeof("curve") - 1)) != NULL &&
 		        Z_TYPE_P(data) == IS_STRING) {
 			if ((ret = rnp_op_generate_set_curve(op, Z_STRVAL_P(data)))) {
+				goto done;
+			}
+		}
+		if ((data = zend_hash_str_find(Z_ARRVAL_P(options), "request_password", sizeof("request_password") - 1)) != NULL &&
+		        Z_TYPE_P(data) == IS_TRUE) {
+			request_password = true;
+			if ((ret = rnp_op_generate_set_request_password(op, true))) {
 				goto done;
 			}
 		}
@@ -518,6 +526,11 @@ PHP_FUNCTION(rnp_op_generate_key)
 				goto done;
 			}
 		}
+		if (request_password) {
+			if ((ret = rnp_op_generate_set_request_password(subop, true))) {
+				goto done;
+			}
+		}
 	}
 
 	if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
@@ -558,6 +571,86 @@ done:
 	rnp_key_handle_destroy(primary);
 }
 
+static bool php_rnp_password_callback(rnp_ffi_t        ffi,
+				      void *           app_ctx,
+				      rnp_key_handle_t key,
+				      const char *     pgp_context,
+				      char             buf[],
+				      size_t           buf_len)
+{
+	php_rnp_ffi_t *pffi = (php_rnp_ffi_t*) app_ctx;
+	char *key_fp;
+	rnp_result_t ret;
+	size_t pass_len;
+
+	zval retval;
+	zval passwordval;
+	zval args[3];
+
+	if (!pffi->pass_provider_is_set) {
+		return false;
+	}
+
+	ZVAL_NULL(&retval);
+	ZVAL_STRINGL(&passwordval, buf, buf_len);
+
+	ret = rnp_key_get_fprint(key, &key_fp);
+
+	if (ret != RNP_SUCCESS) {
+		return false;
+	}
+
+	ZVAL_STRING(&args[0], key_fp);
+	ZVAL_STRING(&args[1], pgp_context);
+	ZVAL_NEW_REF(&args[2], &passwordval);
+
+	pffi->fci.retval = &retval;
+	pffi->fci.param_count = 3;
+	pffi->fci.params = args;
+
+	ret = RNP_ERROR_GENERIC;
+
+	if (zend_call_function(&pffi->fci, &pffi->fci_cache) != FAILURE) {
+		pass_len = Z_STRLEN_P(Z_REFVAL_P(&args[2]));
+		if (pass_len < buf_len) {
+			memcpy(buf, Z_STRVAL_P(Z_REFVAL_P(&args[2])), pass_len + 1);
+			ret = RNP_SUCCESS;
+		}
+	}
+
+	zval_ptr_dtor(&retval);
+	zval_ptr_dtor(&passwordval);
+	zval_ptr_dtor_str(&args[0]);
+	zval_ptr_dtor_str(&args[1]);
+	zval_ptr_dtor(&args[2]);
+	rnp_buffer_destroy(key_fp);
+
+	return (ret == RNP_SUCCESS);
+}
+
+PHP_FUNCTION(rnp_ffi_set_pass_provider)
+{
+	zval *zffi;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_FUNC(Z_FFI_P(zffi)->fci, Z_FFI_P(zffi)->fci_cache)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+	ret = rnp_ffi_set_pass_provider(pffi->ffi, php_rnp_password_callback, pffi);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	pffi->pass_provider_is_set = true;
+	RETURN_TRUE;
+}
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
@@ -585,6 +678,7 @@ static zend_object_handlers rnp_object_handlers;
 static zend_object *rnp_create_object(zend_class_entry *class_type)
 {
 	php_rnp_ffi_t *intern = zend_object_alloc(sizeof(php_rnp_ffi_t), class_type);
+	intern->pass_provider_is_set = false;
 
 	zend_object_std_init(&intern->std, class_type);
 	intern->std.handlers = &rnp_object_handlers;

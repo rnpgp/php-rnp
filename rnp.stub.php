@@ -33,3 +33,5 @@ function rnp_dump_packets(string $input, int $flags): string|false {}
 function rnp_dump_packets_to_json(string $input, int $flags): string|false {}
 
 function rnp_op_generate_key(RnpFFI $ffi, string $userid, string $key_alg, string $sub_alg = null, array $options = []): string|false {}
+
+function rnp_ffi_set_pass_provider(RnpFFI $ffi, callable $password_callback): bool {}

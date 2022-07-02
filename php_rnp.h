@@ -25,6 +25,9 @@ extern zend_module_entry rnp_module_entry;
 typedef struct php_rnp_ffi
 {
 	rnp_ffi_t ffi;
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+	bool pass_provider_is_set;
 	zend_object std;
 } php_rnp_ffi_t;
 
