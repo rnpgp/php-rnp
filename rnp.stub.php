@@ -35,3 +35,9 @@ function rnp_dump_packets_to_json(string $input, int $flags): string|false {}
 function rnp_op_generate_key(RnpFFI $ffi, string $userid, string $key_alg, string $sub_alg = null, array $options = []): string|false {}
 
 function rnp_ffi_set_pass_provider(RnpFFI $ffi, callable $password_callback): bool {}
+
+function rnp_op_sign(RnpFFI $ffi, string $data, array $keys_fp, array $options = []): string|false {}
+
+function rnp_op_sign_cleartext(RnpFFI $ffi, string $data, array $keys_fp, array $options = []): string|false {}
+
+function rnp_op_sign_detached(RnpFFI $ffi, string $data, array  $keys_fp, array $options = []): string|false {}
