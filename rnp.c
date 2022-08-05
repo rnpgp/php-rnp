@@ -1033,7 +1033,7 @@ PHP_FUNCTION(rnp_op_sign_detached)
 		goto done;
 	}
 
-	/* return signature as a PHP string */
+	/* return signature data as a PHP string */
 	ret = rnp_output_memory_get_buf(mem_output, &sig_buf, &sig_len, false);
 
 	if (ret == RNP_SUCCESS) {
@@ -1046,6 +1046,230 @@ done:
 	(void) rnp_output_destroy(mem_output);
 
 	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_op_verify)
+{
+	zval *zffi;
+	zend_string *data;
+
+	rnp_result_t   ret = RNP_ERROR_VERIFICATION_FAILED;
+	php_rnp_ffi_t *pffi;
+	rnp_input_t mem_input = NULL;
+	rnp_output_t null_output = NULL;
+	rnp_op_verify_t verify = NULL;
+	size_t sigcount = 0;
+	size_t i;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(data)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_null(&null_output);
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	if ((ret = rnp_op_verify_create(&verify, pffi->ffi, mem_input, null_output))) {
+		goto done;
+	}
+
+	/* Ignore return value as RNP_SUCCESS is returned only if all signatures are valid.
+	 * But we need to fill array with verification results anyway.
+	 * */
+	(void) rnp_op_verify_execute(verify);
+
+	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
+		goto done;
+	}
+
+	array_init_size(return_value, sigcount);
+
+	for (i = 0; i < sigcount; i++) {
+		rnp_op_verify_signature_t sig = NULL;
+		char *hash = NULL;
+		char *key_fp = NULL;
+		rnp_key_handle_t key = NULL;
+		rnp_signature_handle_t sighnd = NULL;
+		char *sigtype = NULL;
+		uint32_t creation;
+		uint32_t expiration;
+		zval sig_array_item;
+
+		array_init(&sig_array_item);
+		add_index_zval(return_value, i, &sig_array_item);
+
+		if ((ret = rnp_op_verify_get_signature_at(verify, i, &sig))) {
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "verification_status", rnp_result_to_string(rnp_op_verify_signature_get_status(sig)));
+
+		if ((ret = rnp_op_verify_signature_get_times(sig, &creation, &expiration))) {
+			goto done;
+		}
+		add_assoc_long(&sig_array_item, "creation_time", creation);
+		add_assoc_long(&sig_array_item, "expiration_time", expiration);
+
+		if ((ret = rnp_op_verify_signature_get_hash(sig, &hash))) {
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "hash", hash);
+		rnp_buffer_destroy(hash);
+
+		if ((ret = rnp_op_verify_signature_get_key(sig, &key))) {
+			add_assoc_string(&sig_array_item, "signing_key", "Not found");
+			goto skip_key;
+		}
+		if ((ret = rnp_key_get_fprint(key, &key_fp))) {
+			rnp_key_handle_destroy(key);
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "signing_key", key_fp);
+		rnp_key_handle_destroy(key);
+		rnp_buffer_destroy(key_fp);
+skip_key:
+		if ((ret = rnp_op_verify_signature_get_handle(sig, &sighnd))) {
+			goto done;
+		}
+
+		if ((ret = rnp_signature_get_type(sighnd, &sigtype))) {
+			rnp_signature_handle_destroy(sighnd);
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "signature_type", sigtype);
+		rnp_buffer_destroy(sigtype);
+		rnp_signature_handle_destroy(sighnd);
+	}
+done:
+	(void) rnp_op_verify_destroy(verify);
+	(void) rnp_input_destroy(mem_input);
+	(void) rnp_output_destroy(null_output);
+
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_op_verify_detached)
+{
+	zval *zffi;
+	zend_string *data;
+	zend_string *signature;
+
+	rnp_result_t   ret = RNP_ERROR_VERIFICATION_FAILED;
+	php_rnp_ffi_t *pffi;
+	rnp_input_t mem_data_input = NULL;
+	rnp_input_t mem_sig_input = NULL;
+	rnp_op_verify_t verify = NULL;
+	size_t sigcount = 0;
+	size_t i;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(data)
+		Z_PARAM_STR(signature)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_memory(&mem_data_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_input_from_memory(&mem_sig_input, ZSTR_VAL(signature), ZSTR_LEN(signature), false);
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	if ((ret = rnp_op_verify_detached_create(&verify, pffi->ffi, mem_data_input, mem_sig_input))) {
+		goto done;
+	}
+
+	/* Ignore return value as RNP_SUCCESS is returned only if all signatures are valid.
+	 * But we need to fill array with verification results anyway.
+	 * */
+	(void) rnp_op_verify_execute(verify);
+
+	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
+		goto done;
+	}
+
+	array_init_size(return_value, sigcount);
+
+	for (i = 0; i < sigcount; i++) {
+		rnp_op_verify_signature_t sig = NULL;
+		char *hash = NULL;
+		char *key_fp = NULL;
+		rnp_key_handle_t key = NULL;
+		rnp_signature_handle_t sighnd = NULL;
+		char *sigtype = NULL;
+		uint32_t creation;
+		uint32_t expiration;
+		zval sig_array_item;
+
+		array_init(&sig_array_item);
+		add_index_zval(return_value, i, &sig_array_item);
+
+		if ((ret = rnp_op_verify_get_signature_at(verify, i, &sig))) {
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "verification_status", rnp_result_to_string(rnp_op_verify_signature_get_status(sig)));
+
+		if ((ret = rnp_op_verify_signature_get_times(sig, &creation, &expiration))) {
+			goto done;
+		}
+		add_assoc_long(&sig_array_item, "creation_time", creation);
+		add_assoc_long(&sig_array_item, "expiration_time", expiration);
+
+		if ((ret = rnp_op_verify_signature_get_hash(sig, &hash))) {
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "hash", hash);
+		rnp_buffer_destroy(hash);
+
+		if ((ret = rnp_op_verify_signature_get_key(sig, &key))) {
+			add_assoc_string(&sig_array_item, "signing_key", "Not found");
+			goto skip_key;
+		}
+		if ((ret = rnp_key_get_fprint(key, &key_fp))) {
+			rnp_key_handle_destroy(key);
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "signing_key", key_fp);
+		rnp_key_handle_destroy(key);
+		rnp_buffer_destroy(key_fp);
+skip_key:
+		if ((ret = rnp_op_verify_signature_get_handle(sig, &sighnd))) {
+			goto done;
+		}
+
+		if ((ret = rnp_signature_get_type(sighnd, &sigtype))) {
+			rnp_signature_handle_destroy(sighnd);
+			goto done;
+		}
+		add_assoc_string(&sig_array_item, "signature_type", sigtype);
+		rnp_buffer_destroy(sigtype);
+		rnp_signature_handle_destroy(sighnd);
+	}
+done:
+	(void) rnp_op_verify_destroy(verify);
+	(void) rnp_input_destroy(mem_data_input);
+	(void) rnp_input_destroy(mem_sig_input);
+
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
 		RETURN_FALSE;
 	}
 }

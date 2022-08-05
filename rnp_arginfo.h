@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 34aa768bb2be9995a46c3211f74e80644f7e4a5e */
+ * Stub hash: 5233a7104a854172c3a03ffa4c00f20c1efff5f2 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -82,6 +82,17 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_rnp_op_sign_detached arginfo_rnp_op_sign
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_verify, 0, 2, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_verify_detached, 0, 3, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, signature, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
@@ -101,6 +112,8 @@ ZEND_FUNCTION(rnp_ffi_set_pass_provider);
 ZEND_FUNCTION(rnp_op_sign);
 ZEND_FUNCTION(rnp_op_sign_cleartext);
 ZEND_FUNCTION(rnp_op_sign_detached);
+ZEND_FUNCTION(rnp_op_verify);
+ZEND_FUNCTION(rnp_op_verify_detached);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -122,6 +135,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_op_sign, arginfo_rnp_op_sign)
 	ZEND_FE(rnp_op_sign_cleartext, arginfo_rnp_op_sign_cleartext)
 	ZEND_FE(rnp_op_sign_detached, arginfo_rnp_op_sign_detached)
+	ZEND_FE(rnp_op_verify, arginfo_rnp_op_verify)
+	ZEND_FE(rnp_op_verify_detached, arginfo_rnp_op_verify_detached)
 	ZEND_FE_END
 };
 
