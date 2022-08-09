@@ -1090,6 +1090,7 @@ PHP_FUNCTION(rnp_op_verify)
 	(void) rnp_op_verify_execute(verify);
 
 	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
+		ret = RNP_ERROR_NO_SIGNATURES_FOUND;
 		goto done;
 	}
 
@@ -1203,6 +1204,7 @@ PHP_FUNCTION(rnp_op_verify_detached)
 	(void) rnp_op_verify_execute(verify);
 
 	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
+		ret = RNP_ERROR_NO_SIGNATURES_FOUND;
 		goto done;
 	}
 
