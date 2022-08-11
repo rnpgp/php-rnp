@@ -1050,51 +1050,50 @@ done:
 	}
 }
 
-PHP_FUNCTION(rnp_op_verify)
+static rnp_result_t php_rnp_fill_verify_retval(zval *return_value,
+					       rnp_op_verify_t verify,
+					       rnp_result_t verify_result,
+					       bool file_info)
 {
-	zval *zffi;
-	zend_string *data;
-
-	rnp_result_t   ret = RNP_ERROR_VERIFICATION_FAILED;
-	php_rnp_ffi_t *pffi;
-	rnp_input_t mem_input = NULL;
-	rnp_output_t null_output = NULL;
-	rnp_op_verify_t verify = NULL;
+	zval signatures;
+	rnp_result_t ret = RNP_ERROR_VERIFICATION_FAILED;
+	char *prt_mode = NULL;
+	char *prt_cipher = NULL;
+	bool valid_intgr = false;
 	size_t sigcount = 0;
 	size_t i;
-
-	ZEND_PARSE_PARAMETERS_START(2, 2);
-		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
-		Z_PARAM_STR(data)
-	ZEND_PARSE_PARAMETERS_END();
-
-	pffi = Z_FFI_P(zffi);
-
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
-	if (ret != RNP_SUCCESS) {
-		RETURN_FALSE;
-	}
-
-	ret = rnp_output_to_null(&null_output);
-	if (ret != RNP_SUCCESS) {
-		goto done;
-	}
-
-	if ((ret = rnp_op_verify_create(&verify, pffi->ffi, mem_input, null_output))) {
-		goto done;
-	}
-
-	/* Ignore return value as RNP_SUCCESS is returned only if all signatures are valid.
-	 * But we need to fill array with verification results anyway.
-	 * */
-	(void) rnp_op_verify_execute(verify);
 
 	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
 		ret = RNP_ERROR_NO_SIGNATURES_FOUND;
 		goto done;
 	}
 
-	array_init_size(return_value, sigcount);
+	array_init(return_value);
+	add_assoc_string(return_value, "verification_status", rnp_result_to_string(verify_result));
+
+	if (file_info) {
+		char *file_name = NULL;
+		uint32_t file_mtime = 0;
+
+		if ((ret = rnp_op_verify_get_file_info(verify, &file_name, &file_mtime))) {
+			goto done;
+		}
+
+		add_assoc_string(return_value, "file_name", file_name ? file_name : "");
+		rnp_buffer_destroy(file_name);
+		add_assoc_long(return_value, "file_mtime", file_mtime);
+	}
+
+	if ((ret = rnp_op_verify_get_protection_info(verify, &prt_mode, &prt_cipher, &valid_intgr))) {
+		goto done;
+	}
+	add_assoc_string(return_value, "mode", prt_mode);
+	rnp_buffer_destroy(prt_mode);
+	add_assoc_string(return_value, "cipher", prt_cipher);
+	rnp_buffer_destroy(prt_cipher);
+	add_assoc_bool(return_value, "valid_integrity", valid_intgr);
+
+	array_init_size(&signatures, sigcount);
 
 	for (i = 0; i < sigcount; i++) {
 		rnp_op_verify_signature_t sig = NULL;
@@ -1108,7 +1107,7 @@ PHP_FUNCTION(rnp_op_verify)
 		zval sig_array_item;
 
 		array_init(&sig_array_item);
-		add_index_zval(return_value, i, &sig_array_item);
+		add_index_zval(&signatures, i, &sig_array_item);
 
 		if ((ret = rnp_op_verify_get_signature_at(verify, i, &sig))) {
 			goto done;
@@ -1151,6 +1150,49 @@ skip_key:
 		rnp_buffer_destroy(sigtype);
 		rnp_signature_handle_destroy(sighnd);
 	}
+
+	add_assoc_zval(return_value, "signatures", &signatures);
+
+done:
+	return ret;
+}
+
+PHP_FUNCTION(rnp_op_verify)
+{
+	zval *zffi;
+	zend_string *data;
+
+	rnp_result_t ret = RNP_ERROR_VERIFICATION_FAILED;
+	rnp_result_t verify_result = RNP_ERROR_VERIFICATION_FAILED;
+	php_rnp_ffi_t *pffi;
+	rnp_input_t mem_input = NULL;
+	rnp_output_t null_output = NULL;
+	rnp_op_verify_t verify = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(data)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_null(&null_output);
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	if ((ret = rnp_op_verify_create(&verify, pffi->ffi, mem_input, null_output))) {
+		goto done;
+	}
+
+	verify_result = rnp_op_verify_execute(verify);
+
+	ret = php_rnp_fill_verify_retval(return_value, verify, verify_result, true);
 done:
 	(void) rnp_op_verify_destroy(verify);
 	(void) rnp_input_destroy(mem_input);
@@ -1169,6 +1211,7 @@ PHP_FUNCTION(rnp_op_verify_detached)
 	zend_string *signature;
 
 	rnp_result_t   ret = RNP_ERROR_VERIFICATION_FAILED;
+	rnp_result_t verify_result = RNP_ERROR_VERIFICATION_FAILED;
 	php_rnp_ffi_t *pffi;
 	rnp_input_t mem_data_input = NULL;
 	rnp_input_t mem_sig_input = NULL;
@@ -1198,73 +1241,9 @@ PHP_FUNCTION(rnp_op_verify_detached)
 		goto done;
 	}
 
-	/* Ignore return value as RNP_SUCCESS is returned only if all signatures are valid.
-	 * But we need to fill array with verification results anyway.
-	 * */
-	(void) rnp_op_verify_execute(verify);
+	verify_result = rnp_op_verify_execute(verify);
 
-	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
-		ret = RNP_ERROR_NO_SIGNATURES_FOUND;
-		goto done;
-	}
-
-	array_init_size(return_value, sigcount);
-
-	for (i = 0; i < sigcount; i++) {
-		rnp_op_verify_signature_t sig = NULL;
-		char *hash = NULL;
-		char *key_fp = NULL;
-		rnp_key_handle_t key = NULL;
-		rnp_signature_handle_t sighnd = NULL;
-		char *sigtype = NULL;
-		uint32_t creation;
-		uint32_t expiration;
-		zval sig_array_item;
-
-		array_init(&sig_array_item);
-		add_index_zval(return_value, i, &sig_array_item);
-
-		if ((ret = rnp_op_verify_get_signature_at(verify, i, &sig))) {
-			goto done;
-		}
-		add_assoc_string(&sig_array_item, "verification_status", rnp_result_to_string(rnp_op_verify_signature_get_status(sig)));
-
-		if ((ret = rnp_op_verify_signature_get_times(sig, &creation, &expiration))) {
-			goto done;
-		}
-		add_assoc_long(&sig_array_item, "creation_time", creation);
-		add_assoc_long(&sig_array_item, "expiration_time", expiration);
-
-		if ((ret = rnp_op_verify_signature_get_hash(sig, &hash))) {
-			goto done;
-		}
-		add_assoc_string(&sig_array_item, "hash", hash);
-		rnp_buffer_destroy(hash);
-
-		if ((ret = rnp_op_verify_signature_get_key(sig, &key))) {
-			add_assoc_string(&sig_array_item, "signing_key", "Not found");
-			goto skip_key;
-		}
-		if ((ret = rnp_key_get_fprint(key, &key_fp))) {
-			rnp_key_handle_destroy(key);
-			goto done;
-		}
-		add_assoc_string(&sig_array_item, "signing_key", key_fp);
-		rnp_key_handle_destroy(key);
-		rnp_buffer_destroy(key_fp);
-skip_key:
-		if ((ret = rnp_op_verify_signature_get_handle(sig, &sighnd))) {
-			goto done;
-		}
-
-		if ((ret = rnp_signature_get_type(sighnd, &sigtype))) {
-			rnp_signature_handle_destroy(sighnd);
-			goto done;
-		}
-		add_assoc_string(&sig_array_item, "signature_type", sigtype);
-		rnp_buffer_destroy(sigtype);
-		rnp_signature_handle_destroy(sighnd);
-	}
+	ret = php_rnp_fill_verify_retval(return_value, verify, verify_result, false);
 done:
 	(void) rnp_op_verify_destroy(verify);
 	(void) rnp_input_destroy(mem_data_input);
