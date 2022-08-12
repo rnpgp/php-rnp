@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5233a7104a854172c3a03ffa4c00f20c1efff5f2 */
+ * Stub hash: 420ab1b7bf2c18e13a15d5fc63764f108dc36e77 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -93,6 +93,18 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_verify_detached, 0, 3, MA
 	ZEND_ARG_TYPE_INFO(0, signature, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_encrypt, 0, 3, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, recipient_keys_fp, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_decrypt, 0, 2, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, input, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
@@ -114,6 +126,8 @@ ZEND_FUNCTION(rnp_op_sign_cleartext);
 ZEND_FUNCTION(rnp_op_sign_detached);
 ZEND_FUNCTION(rnp_op_verify);
 ZEND_FUNCTION(rnp_op_verify_detached);
+ZEND_FUNCTION(rnp_op_encrypt);
+ZEND_FUNCTION(rnp_decrypt);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -137,6 +151,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_op_sign_detached, arginfo_rnp_op_sign_detached)
 	ZEND_FE(rnp_op_verify, arginfo_rnp_op_verify)
 	ZEND_FE(rnp_op_verify_detached, arginfo_rnp_op_verify_detached)
+	ZEND_FE(rnp_op_encrypt, arginfo_rnp_op_encrypt)
+	ZEND_FE(rnp_decrypt, arginfo_rnp_decrypt)
 	ZEND_FE_END
 };
 
