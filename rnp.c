@@ -579,7 +579,7 @@ static bool php_rnp_password_callback(rnp_ffi_t        ffi,
 				      size_t           buf_len)
 {
 	php_rnp_ffi_t *pffi = (php_rnp_ffi_t*) app_ctx;
-	char *key_fp;
+	char *key_fp = "";
 	rnp_result_t ret;
 	size_t pass_len;
 
@@ -594,10 +594,13 @@ static bool php_rnp_password_callback(rnp_ffi_t        ffi,
 	ZVAL_NULL(&retval);
 	ZVAL_STRINGL(&passwordval, buf, buf_len);
 
-	ret = rnp_key_get_fprint(key, &key_fp);
+	if (key) {
+		ret = rnp_key_get_fprint(key, &key_fp);
 
-	if (ret != RNP_SUCCESS) {
-		return false;
+		if (ret != RNP_SUCCESS) {
+			zval_ptr_dtor(&passwordval);
+			return false;
+		}
 	}
 
 	ZVAL_STRING(&args[0], key_fp);
@@ -623,7 +626,10 @@ static bool php_rnp_password_callback(rnp_ffi_t        ffi,
 	zval_ptr_dtor_str(&args[0]);
 	zval_ptr_dtor_str(&args[1]);
 	zval_ptr_dtor(&args[2]);
-	rnp_buffer_destroy(key_fp);
+
+	if (key) {
+		rnp_buffer_destroy(key_fp);
+	}
 
 	return (ret == RNP_SUCCESS);
 }
