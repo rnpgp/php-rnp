@@ -1502,7 +1502,7 @@ PHP_FUNCTION(rnp_decrypt)
 		goto done;
 	}
 
-	/* return encrypted data as a PHP string */
+	/* return decrypted data as a PHP string */
 	ret = rnp_output_memory_get_buf(mem_output, &decrypted_buf, &decrypted_len, false);
 
 	if (ret == RNP_SUCCESS) {
