@@ -49,3 +49,5 @@ function rnp_op_verify_detached(RnpFFI $ffi, string $data, string $signature): a
 function rnp_op_encrypt(RnpFFI $ffi, string $message, array $recipient_keys_fp, array $options = []): string|false {}
 
 function rnp_decrypt(RnpFFI $ffi, string $input): string|false {}
+
+function rnp_locate_key(RnpFFI $ffi, string $identifier_type, string $identifier): string|false {}

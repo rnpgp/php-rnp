@@ -1517,6 +1517,43 @@ done:
 	}
 }
 
+PHP_FUNCTION(rnp_locate_key)
+{
+	zval *zffi;
+	zend_string *identifier_type;
+	zend_string *identifier;
+
+	rnp_result_t     ret;
+	php_rnp_ffi_t   *pffi;
+	rnp_key_handle_t kh = NULL;
+	char            *fprint = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(identifier_type)
+		Z_PARAM_STR(identifier)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, ZSTR_VAL(identifier_type), ZSTR_VAL(identifier), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+
+	if ((ret = rnp_key_get_fprint(kh, &fprint))) {
+		rnp_key_handle_destroy(kh);
+		RETURN_FALSE;
+	}
+
+	ZVAL_STRINGL(return_value, fprint, strlen(fprint));
+
+	rnp_buffer_destroy(fprint);
+	rnp_key_handle_destroy(kh);
+}
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
