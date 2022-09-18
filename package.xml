@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://pear.php.net/dtd/package-2.0"
+         xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0"
+         xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+                             http://pear.php.net/dtd/tasks-1.0.xsd
+                             http://pear.php.net/dtd/package-2.0
+                             http://pear.php.net/dtd/package-2.0.xsd">
+ <name>rnp</name>
+ <channel>pecl.php.net</channel>
+ <summary>wrapper around the RNP library</summary>
+ <description>PHP extension for RNP - high performance OpenPGP implementation</description>
+ <lead>
+  <name>Anton Sviridenko</name>
+  <user>anton</user>
+  <email>anton@picapica.im</email>
+  <active>yes</active>
+ </lead>
+ <date>2022-09-20</date>
+ <version>
+  <release>0.1</release>
+  <api>0.1</api>
+ </version>
+ <stability>
+  <release>beta</release>
+  <api>beta</api>
+ </stability>
+ <license uri="https://github.com/rnpgp/php-rnp/blob/main/LICENSE">BSD 2-Clause License</license>
+ <notes><![CDATA[
+ * Initial release
+ ]]></notes>
+ <contents>
+  <dir name="/">
+   <file name="config.m4" role="src" />
+   <file name="config.w32" role="src" />
+   <file name="rnp.c" role="src" />
+   <file name="LICENSE" role="doc" />
+   <file name="CREDITS" role="doc" />
+   <file name="php_rnp.h" role="src" />
+   <file name="rnp_arginfo.h" role="src" />
+   <file name="rnp.stub.php" role="src" />
+   <dir name="tests">
+    <file name="001.phpt" role="test" />
+    <file name="002.phpt" role="test" />
+    <file name="003.phpt" role="test" />
+    <file name="004.phpt" role="test" />
+    <file name="005.phpt" role="test" />
+    <file name="006.phpt" role="test" />
+    <file name="007.phpt" role="test" />
+    <file name="008.phpt" role="test" />
+    <file name="009.phpt" role="test" />
+    <file name="0010.phpt" role="test" />
+    <file name="011.phpt" role="test" />
+    <file name="checkdump.inc" role="test" />
+    <file name="testkeys.inc" role="test" />
+   </dir>
+  </dir>
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>8.0.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.4.0</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>rnp</providesextension>
+ <extsrcrelease />
+ <changelog>
+  <release>
+   <version>
+    <release>0.1</release>
+    <api>0.1</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2022-09-20</date>
+   <license uri="https://github.com/rnpgp/php-rnp/blob/main/LICENSE">BSD 2-Clause License</license>
+   <notes><![CDATA[
+   * Initial release
+   ]]></notes>
+  </release>
+ </changelog>
+</package>
