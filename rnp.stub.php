@@ -51,3 +51,19 @@ function rnp_op_encrypt(RnpFFI $ffi, string $message, array $recipient_keys_fp, 
 function rnp_decrypt(RnpFFI $ffi, string $input): string|false {}
 
 function rnp_locate_key(RnpFFI $ffi, string $identifier_type, string $identifier): string|false {}
+
+function rnp_list_keys(RnpFFI $ffi, string $identifier_type): array|false {}
+
+function rnp_key_get_info(RnpFFI $ffi, string $key_fp): array|false {}
+
+function rnp_key_export(RnpFFI $ffi, string $key_fp, int $flags): string|false {}
+
+function rnp_key_export_autocrypt(RnpFFI $ffi, string $key_fp, string $subkey_fp, string $uid, int $flags): string|false {}
+
+function rnp_import_keys(RnpFFI $ffi, string $input, int $flags): string|false {}
+
+function rnp_key_remove(RnpFFI $ffi, string $key_fp, int $flags): bool {}
+
+function rnp_key_revoke(RnpFFI $ffi, string $key_fp, int $flags, array $options = []): bool {}
+
+function rnp_key_export_revocation(RnpFFI $ffi, string $key_fp, int $flags, array $options = []): string|false {}

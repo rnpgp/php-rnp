@@ -1542,7 +1542,6 @@ PHP_FUNCTION(rnp_locate_key)
 		RETURN_FALSE;
 	}
 
-
 	if ((ret = rnp_key_get_fprint(kh, &fprint))) {
 		rnp_key_handle_destroy(kh);
 		RETURN_FALSE;
@@ -1552,6 +1551,93 @@ PHP_FUNCTION(rnp_locate_key)
 
 	rnp_buffer_destroy(fprint);
 	rnp_key_handle_destroy(kh);
+}
+
+PHP_FUNCTION(rnp_list_keys)
+{
+	zval *zffi;
+	zend_string *identifier_type;
+
+	rnp_result_t              ret;
+	php_rnp_ffi_t            *pffi;
+	rnp_key_handle_t          kh = NULL;
+	rnp_identifier_iterator_t it = NULL;
+	char                     *fprint = NULL;
+	const char               *identifier = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(identifier_type)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_identifier_iterator_create(pffi->ffi, &it, ZSTR_VAL(identifier_type));
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	while ((ret = rnp_identifier_iterator_next(it, &identifier)) == RNP_SUCCESS) {
+		if (!identifier) {
+			break;
+		}
+
+		ret = rnp_locate_key(pffi->ffi, ZSTR_VAL(identifier_type), identifier, &kh);
+
+		if (ret != RNP_SUCCESS || !kh) {
+			goto done;
+		}
+
+		ret = rnp_key_get_fprint(kh, &fprint);
+
+		if (ret != RNP_SUCCESS) {
+			rnp_key_handle_destroy(kh);
+			goto done;
+		}
+
+		add_assoc_string(return_value, identifier, fprint);
+
+		rnp_buffer_destroy(fprint);
+		rnp_key_handle_destroy(kh);
+	}
+
+done:
+	rnp_identifier_iterator_destroy(it);
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_key_get_info)
+{
+}
+
+PHP_FUNCTION(rnp_key_export)
+{
+}
+
+PHP_FUNCTION(rnp_key_export_autocrypt)
+{
+}
+
+PHP_FUNCTION(rnp_import_keys)
+{
+}
+
+PHP_FUNCTION(rnp_key_remove)
+{
+}
+
+PHP_FUNCTION(rnp_key_revoke)
+{
+}
+
+PHP_FUNCTION(rnp_key_export_revocation)
+{
 }
 
 /* {{{ PHP_RINIT_FUNCTION */
