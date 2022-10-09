@@ -1850,6 +1850,73 @@ done:
 
 PHP_FUNCTION(rnp_key_export_autocrypt)
 {
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *subkey_fp;
+	zend_string *uid;
+	zend_long flags;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_output_t mem_output = NULL;
+	rnp_key_handle_t kh = NULL;
+	rnp_key_handle_t subkh = NULL;
+	const char *uid_str = NULL;
+
+	uint8_t *exported_buf;
+	size_t   exported_len;
+
+	ZEND_PARSE_PARAMETERS_START(5, 5);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_STR(subkey_fp)
+		Z_PARAM_STR(uid)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	if (ZSTR_LEN(subkey_fp) > 0) {
+		ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(subkey_fp), &subkh);
+		if (ret != RNP_SUCCESS) {
+			goto done;
+		}
+	}
+
+	if (ZSTR_LEN(uid) > 0) {
+		uid_str = ZSTR_VAL(uid);
+	}
+
+	ret = rnp_key_export_autocrypt(kh, subkh, uid_str, mem_output, flags);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_output_memory_get_buf(mem_output, &exported_buf, &exported_len, false);
+
+	if (ret == RNP_SUCCESS) {
+		ZVAL_STRINGL(return_value, exported_buf, exported_len);
+	}
+done:
+	(void) rnp_key_handle_destroy(kh);
+	(void) rnp_key_handle_destroy(subkh);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
 }
 
 PHP_FUNCTION(rnp_import_keys)
