@@ -1797,6 +1797,55 @@ done:
 
 PHP_FUNCTION(rnp_key_export)
 {
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long flags;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_output_t mem_output = NULL;
+	rnp_key_handle_t kh = NULL;
+
+	uint8_t *exported_buf;
+	size_t   exported_len;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_key_export(kh, mem_output, flags);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_output_memory_get_buf(mem_output, &exported_buf, &exported_len, false);
+
+	if (ret == RNP_SUCCESS) {
+		ZVAL_STRINGL(return_value, exported_buf, exported_len);
+	}
+done:
+	(void) rnp_key_handle_destroy(kh);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
 }
 
 PHP_FUNCTION(rnp_key_export_autocrypt)
@@ -1905,6 +1954,12 @@ PHP_MINIT_FUNCTION(rnp)
 	REGISTER_STRING_CONSTANT("RNP_KEYSTORE_GPG", RNP_KEYSTORE_GPG, CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("RNP_KEYSTORE_KBX", RNP_KEYSTORE_KBX, CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("RNP_KEYSTORE_G10", RNP_KEYSTORE_G10, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_KEY_EXPORT_ARMORED", RNP_KEY_EXPORT_ARMORED, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_EXPORT_PUBLIC", RNP_KEY_EXPORT_PUBLIC, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_EXPORT_SECRET", RNP_KEY_EXPORT_SECRET, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_EXPORT_SUBKEYS", RNP_KEY_EXPORT_SUBKEYS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_EXPORT_BASE64", RNP_KEY_EXPORT_BASE64, CONST_CS | CONST_PERSISTENT);
 }
 
 
