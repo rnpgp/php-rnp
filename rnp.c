@@ -1921,6 +1921,42 @@ done:
 
 PHP_FUNCTION(rnp_import_keys)
 {
+	zval *zffi;
+	zend_string *input;
+	zend_long flags;
+
+	php_rnp_ffi_t *pffi;
+	rnp_result_t ret;
+	rnp_input_t mem_input;
+	char *results = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(input)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_import_keys(pffi->ffi, mem_input, flags, &results);
+
+	if (ret == RNP_SUCCESS) {
+		ZVAL_STRING(return_value, results);
+		rnp_buffer_destroy(results);
+	}
+
+done:
+	(void) rnp_input_destroy(mem_input);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
 }
 
 PHP_FUNCTION(rnp_key_remove)
