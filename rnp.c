@@ -1614,6 +1614,185 @@ done:
 
 PHP_FUNCTION(rnp_key_get_info)
 {
+	zval *zffi;
+	zend_string *key_fp;
+
+	rnp_result_t              ret;
+	php_rnp_ffi_t            *pffi;
+	rnp_key_handle_t          kh = NULL;
+	bool                      boolval = false;
+	zend_long                 longval = 0;
+	char                     *strval = NULL;
+	char                     *fprint = NULL;
+	uint32_t                  bits = 0;
+	zval subkeys;
+	zval uids;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	if ((ret = rnp_key_is_primary(kh, &boolval))) {
+		goto done;
+	}
+	if (boolval) {
+		size_t count = 0;
+		size_t i;
+
+		/* uid-s*/
+		ret = rnp_key_get_uid_count(kh, &count);
+		if (ret != RNP_SUCCESS) {
+			goto done;
+		}
+		array_init_size(&uids, count);
+
+		for (i = 0; i < count; i++) {
+			char *uid_str = NULL;
+
+			ret = rnp_key_get_uid_at(kh, i, &uid_str);
+
+			if (ret != RNP_SUCCESS) {
+				continue;
+			}
+
+			add_index_string(&uids, i, uid_str);
+
+			rnp_buffer_destroy(uid_str);
+		}
+
+		add_assoc_zval(return_value, "uids", &uids);
+
+		/* subkeys */
+		ret = rnp_key_get_subkey_count(kh, &count);
+		if (ret != RNP_SUCCESS) {
+			goto done;
+		}
+		array_init_size(&subkeys, count);
+
+		for (i = 0; i < count; i++) {
+			rnp_key_handle_t sub_kh = NULL;
+
+			ret = rnp_key_get_subkey_at(kh, i, &sub_kh);
+
+			if (ret != RNP_SUCCESS) {
+				continue;
+			}
+
+			ret = rnp_key_get_fprint(sub_kh, &fprint);
+
+			if (ret != RNP_SUCCESS) {
+				rnp_key_handle_destroy(sub_kh);
+				continue;
+			}
+
+			add_index_string(&subkeys, i, fprint);
+
+			rnp_key_handle_destroy(sub_kh);
+			rnp_buffer_destroy(fprint);
+		}
+
+		add_assoc_zval(return_value, "subkeys", &subkeys);
+	}
+
+	add_assoc_bool(return_value, "is_primary", boolval);
+
+
+	if ((ret = rnp_key_is_sub(kh, &boolval))) {
+		goto done;
+	}
+	add_assoc_bool(return_value, "is_sub", boolval);
+
+	if ((ret = rnp_key_is_valid(kh, &boolval))) {
+		goto done;
+	}
+	add_assoc_bool(return_value, "is_valid", boolval);
+
+	if ((ret = rnp_key_is_revoked(kh, &boolval))) {
+		goto done;
+	}
+	if (boolval) {
+		if ((ret = rnp_key_is_superseded(kh, &boolval))) {
+			goto done;
+		}
+		add_assoc_bool(return_value, "is_superseded", boolval);
+
+		if ((ret = rnp_key_is_compromised(kh, &boolval))) {
+			goto done;
+		}
+		add_assoc_bool(return_value, "is_compromised", boolval);
+
+		if ((ret = rnp_key_is_retired(kh, &boolval))) {
+			goto done;
+	}
+	add_assoc_bool(return_value, "is_retired", boolval);
+
+	}
+	add_assoc_bool(return_value, "is_revoked", boolval);
+
+	if ((ret = rnp_key_is_expired(kh, &boolval))) {
+		goto done;
+	}
+	add_assoc_bool(return_value, "is_expired", boolval);
+
+	if ((ret = rnp_key_have_secret(kh, &boolval))) {
+		goto done;
+	}
+	if (boolval) {
+		if ((ret = rnp_key_is_locked(kh, &boolval))) {
+			goto done;
+		}
+		add_assoc_bool(return_value, "is_locked", boolval);
+
+		if ((ret = rnp_key_is_protected(kh, &boolval))) {
+			goto done;
+		}
+		add_assoc_bool(return_value, "is_protected", boolval);
+	}
+	add_assoc_bool(return_value, "have_secret", boolval);
+
+	if ((ret = rnp_key_have_public(kh, &boolval))) {
+		goto done;
+	}
+	add_assoc_bool(return_value, "have_public", boolval);
+
+#ifdef ZEND_ENABLE_ZVAL_LONG64
+	if ((ret = rnp_key_valid_till64(kh, &longval))) {
+		goto done;
+	}
+	add_assoc_long(return_value, "valid_till", longval);
+#else
+	if ((ret = rnp_key_valid_till(kh, &longval))) {
+		goto done;
+	}
+	add_assoc_long(return_value, "valid_till", longval);
+#endif
+
+	if ((ret = rnp_key_get_bits(kh, &bits))) {
+		goto done;
+	}
+	add_assoc_long(return_value, "bits", bits);
+
+	if ((ret = rnp_key_get_alg(kh, &strval))) {
+		goto done;
+	}
+	add_assoc_string(return_value, "alg", strval);
+	rnp_buffer_destroy(strval);
+done:
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
+		RETURN_FALSE;
+	}
 }
 
 PHP_FUNCTION(rnp_key_export)
