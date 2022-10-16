@@ -1721,6 +1721,7 @@ PHP_FUNCTION(rnp_key_get_info)
 	if ((ret = rnp_key_is_revoked(kh, &boolval))) {
 		goto done;
 	}
+	add_assoc_bool(return_value, "is_revoked", boolval);
 	if (boolval) {
 		if ((ret = rnp_key_is_superseded(kh, &boolval))) {
 			goto done;
@@ -1734,11 +1735,9 @@ PHP_FUNCTION(rnp_key_get_info)
 
 		if ((ret = rnp_key_is_retired(kh, &boolval))) {
 			goto done;
+		}
+		add_assoc_bool(return_value, "is_retired", boolval);
 	}
-	add_assoc_bool(return_value, "is_retired", boolval);
-
-	}
-	add_assoc_bool(return_value, "is_revoked", boolval);
 
 	if ((ret = rnp_key_is_expired(kh, &boolval))) {
 		goto done;
@@ -1748,6 +1747,7 @@ PHP_FUNCTION(rnp_key_get_info)
 	if ((ret = rnp_key_have_secret(kh, &boolval))) {
 		goto done;
 	}
+	add_assoc_bool(return_value, "have_secret", boolval);
 	if (boolval) {
 		if ((ret = rnp_key_is_locked(kh, &boolval))) {
 			goto done;
@@ -1759,7 +1759,6 @@ PHP_FUNCTION(rnp_key_get_info)
 		}
 		add_assoc_bool(return_value, "is_protected", boolval);
 	}
-	add_assoc_bool(return_value, "have_secret", boolval);
 
 	if ((ret = rnp_key_have_public(kh, &boolval))) {
 		goto done;
