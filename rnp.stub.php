@@ -67,3 +67,5 @@ function rnp_key_remove(RnpFFI $ffi, string $key_fp, int $flags): bool {}
 function rnp_key_revoke(RnpFFI $ffi, string $key_fp, int $flags, array $options = []): bool {}
 
 function rnp_key_export_revocation(RnpFFI $ffi, string $key_fp, int $flags, array $options = []): string|false {}
+
+function rnp_import_signatures(RnpFFI $ffi, string $input, int $flags): string|false {}

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4c4df945c181e837cf28a525b76f564e57b70722 */
+ * Stub hash: 62703254b577d12678c1efdb6915deba0d55b26d */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -161,6 +161,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_key_export_revocation, 0, 3,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
+#define arginfo_rnp_import_signatures arginfo_rnp_import_keys
+
 
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
@@ -193,6 +195,7 @@ ZEND_FUNCTION(rnp_import_keys);
 ZEND_FUNCTION(rnp_key_remove);
 ZEND_FUNCTION(rnp_key_revoke);
 ZEND_FUNCTION(rnp_key_export_revocation);
+ZEND_FUNCTION(rnp_import_signatures);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -227,6 +230,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_key_remove, arginfo_rnp_key_remove)
 	ZEND_FE(rnp_key_revoke, arginfo_rnp_key_revoke)
 	ZEND_FE(rnp_key_export_revocation, arginfo_rnp_key_export_revocation)
+	ZEND_FE(rnp_import_signatures, arginfo_rnp_import_signatures)
 	ZEND_FE_END
 };
 

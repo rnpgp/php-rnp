@@ -1996,10 +1996,182 @@ PHP_FUNCTION(rnp_key_remove)
 
 PHP_FUNCTION(rnp_key_revoke)
 {
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long flags;
+	zval *options = NULL;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	const char *hash = NULL;
+	const char *code = NULL;
+	const char *reason = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_LONG(flags)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	/* apply options*/
+	if (ZEND_NUM_ARGS() > 3 && options && Z_TYPE_P(options) == IS_ARRAY) {
+		zval *opt;
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			hash = Z_STRVAL_P(opt);
+		}
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "code", sizeof("code") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			code = Z_STRVAL_P(opt);
+		}
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "reason", sizeof("reason") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			reason = Z_STRVAL_P(opt);
+		}
+	}
+
+	ret = rnp_key_revoke(kh, flags, hash, code, reason);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
 }
 
 PHP_FUNCTION(rnp_key_export_revocation)
 {
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long flags;
+	zval *options = NULL;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	rnp_output_t mem_output = NULL;
+	const char *hash = NULL;
+	const char *code = NULL;
+	const char *reason = NULL;
+
+	uint8_t *exported_buf;
+	size_t   exported_len;
+
+	ZEND_PARSE_PARAMETERS_START(3, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_LONG(flags)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	/* apply options*/
+	if (ZEND_NUM_ARGS() > 3 && options && Z_TYPE_P(options) == IS_ARRAY) {
+		zval *opt;
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			hash = Z_STRVAL_P(opt);
+		}
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "code", sizeof("code") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			code = Z_STRVAL_P(opt);
+		}
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "reason", sizeof("reason") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			reason = Z_STRVAL_P(opt);
+		}
+	}
+
+	ret = rnp_key_export_revocation(kh, mem_output, flags, hash, code, reason);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_output_memory_get_buf(mem_output, &exported_buf, &exported_len, false);
+
+	if (ret == RNP_SUCCESS) {
+		ZVAL_STRINGL(return_value, exported_buf, exported_len);
+	}
+done:
+	(void) rnp_key_handle_destroy(kh);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_import_signatures)
+{
+	zval *zffi;
+	zend_string *input;
+	zend_long flags;
+
+	php_rnp_ffi_t *pffi;
+	rnp_result_t ret;
+	rnp_input_t mem_input;
+	char *results = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(input)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_import_signatures(pffi->ffi, mem_input, flags, &results);
+
+	if (ret == RNP_SUCCESS) {
+		ZVAL_STRING(return_value, results);
+		rnp_buffer_destroy(results);
+	}
+
+done:
+	(void) rnp_input_destroy(mem_input);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
 }
 
 /* {{{ PHP_RINIT_FUNCTION */
