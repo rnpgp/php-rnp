@@ -41,7 +41,7 @@ static inline php_rnp_ffi_t *rnp_ffi_t_from_obj(zend_object *obj)
 
 PHP_RNP_API extern zend_class_entry *rnp_ffi_t_ce;
 
-# define PHP_RNP_VERSION "0.1.0"
+# define PHP_RNP_VERSION "0.1.1"
 
 # if defined(ZTS) && defined(COMPILE_DL_RNP)
 ZEND_TSRMLS_CACHE_EXTERN()
