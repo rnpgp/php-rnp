@@ -2190,6 +2190,8 @@ PHP_MINFO_FUNCTION(rnp)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "rnp support", "enabled");
+	php_info_print_table_row(2, "rnp extension version", PHP_RNP_VERSION);
+	php_info_print_table_row(2, "rnp library version", rnp_version_string());
 	php_info_print_table_end();
 }
 /* }}} */
