@@ -2188,11 +2188,17 @@ PHP_RINIT_FUNCTION(rnp)
 /* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(rnp)
 {
+	char *backend = NULL;
+
 	php_info_print_table_start();
 	php_info_print_table_header(2, "rnp support", "enabled");
 	php_info_print_table_row(2, "rnp extension version", PHP_RNP_VERSION);
 	php_info_print_table_row(2, "rnp library version", rnp_version_string());
+	spprintf(&backend, 0, "%s version %s", rnp_backend_string(), rnp_backend_version());
+	php_info_print_table_row(2, "rnp backend", backend);
+	efree(backend);
 	php_info_print_table_end();
+
 }
 /* }}} */
 
