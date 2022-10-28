@@ -1950,7 +1950,6 @@ PHP_FUNCTION(rnp_import_keys)
 		rnp_buffer_destroy(results);
 	}
 
-done:
 	(void) rnp_input_destroy(mem_input);
 
 	if (ret != RNP_SUCCESS) {
@@ -2166,7 +2165,6 @@ PHP_FUNCTION(rnp_import_signatures)
 		rnp_buffer_destroy(results);
 	}
 
-done:
 	(void) rnp_input_destroy(mem_input);
 
 	if (ret != RNP_SUCCESS) {
