@@ -2,6 +2,10 @@
 encrypt/decrypt test
 --EXTENSIONS--
 rnp
+--SKIPIF--
+<?php
+if (!strcasecmp(rnp_backend_string(), "openssl")) die("skip OpenSSL backend");
+?>
 --CAPTURE_STDIO--
 STDIN STDOUT
 --FILE--
