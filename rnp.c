@@ -178,7 +178,7 @@ PHP_FUNCTION(rnp_load_keys)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
@@ -266,7 +266,7 @@ PHP_FUNCTION(rnp_save_keys)
 		ret = rnp_output_memory_get_buf(mem_output, &buf, &len, false);
 
 		if (ret == RNP_SUCCESS) {
-			ZEND_TRY_ASSIGN_REF_STRINGL(output_ref, buf, len);
+			ZEND_TRY_ASSIGN_REF_STRINGL(output_ref, (char *)buf, len);
 		}
 	}
 
@@ -330,7 +330,7 @@ PHP_FUNCTION(rnp_dump_packets)
 		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
@@ -351,7 +351,7 @@ PHP_FUNCTION(rnp_dump_packets)
 		ret = rnp_output_memory_get_buf(mem_output, &buf, &len, false);
 
 		if (ret == RNP_SUCCESS) {
-			ZVAL_STRINGL(return_value, buf, len);
+			ZVAL_STRINGL(return_value, (char *)buf, len);
 		}
 	}
 
@@ -377,7 +377,7 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
@@ -683,7 +683,7 @@ PHP_FUNCTION(rnp_op_sign)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
@@ -799,7 +799,7 @@ PHP_FUNCTION(rnp_op_sign)
 	ret = rnp_output_memory_get_buf(mem_output, &sig_buf, &sig_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, sig_buf, sig_len);
+		ZVAL_STRINGL(return_value, (char *)sig_buf, sig_len);
 	}
 
 done:
@@ -838,7 +838,7 @@ PHP_FUNCTION(rnp_op_sign_cleartext)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
@@ -921,7 +921,7 @@ PHP_FUNCTION(rnp_op_sign_cleartext)
 	ret = rnp_output_memory_get_buf(mem_output, &sig_buf, &sig_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, sig_buf, sig_len);
+		ZVAL_STRINGL(return_value, (char *)sig_buf, sig_len);
 	}
 
 done:
@@ -960,7 +960,7 @@ PHP_FUNCTION(rnp_op_sign_detached)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
@@ -1043,7 +1043,7 @@ PHP_FUNCTION(rnp_op_sign_detached)
 	ret = rnp_output_memory_get_buf(mem_output, &sig_buf, &sig_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, sig_buf, sig_len);
+		ZVAL_STRINGL(return_value, (char *)sig_buf, sig_len);
 	}
 
 done:
@@ -1182,7 +1182,7 @@ PHP_FUNCTION(rnp_op_verify)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
@@ -1233,12 +1233,12 @@ PHP_FUNCTION(rnp_op_verify_detached)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_data_input, ZSTR_VAL(data), ZSTR_LEN(data), false);
+	ret = rnp_input_from_memory(&mem_data_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
 
-	ret = rnp_input_from_memory(&mem_sig_input, ZSTR_VAL(signature), ZSTR_LEN(signature), false);
+	ret = rnp_input_from_memory(&mem_sig_input, (uint8_t *)ZSTR_VAL(signature), ZSTR_LEN(signature), false);
 	if (ret != RNP_SUCCESS) {
 		goto done;
 	}
@@ -1289,7 +1289,7 @@ PHP_FUNCTION(rnp_op_encrypt)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(message), ZSTR_LEN(message), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(message), ZSTR_LEN(message), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
@@ -1455,7 +1455,7 @@ skip_recipients:
 	ret = rnp_output_memory_get_buf(mem_output, &encrypted_buf, &encrypted_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, encrypted_buf, encrypted_len);
+		ZVAL_STRINGL(return_value, (char *)encrypted_buf, encrypted_len);
 	}
 
 done:
@@ -1488,7 +1488,7 @@ PHP_FUNCTION(rnp_decrypt)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
@@ -1506,7 +1506,7 @@ PHP_FUNCTION(rnp_decrypt)
 	ret = rnp_output_memory_get_buf(mem_output, &decrypted_buf, &decrypted_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, decrypted_buf, decrypted_len);
+		ZVAL_STRINGL(return_value, (char *)decrypted_buf, decrypted_len);
 	}
 done:
 	(void) rnp_input_destroy(mem_input);
@@ -1621,10 +1621,10 @@ PHP_FUNCTION(rnp_key_get_info)
 	php_rnp_ffi_t            *pffi;
 	rnp_key_handle_t          kh = NULL;
 	bool                      boolval = false;
-	zend_long                 longval = 0;
 	char                     *strval = NULL;
 	char                     *fprint = NULL;
-	uint32_t                  bits = 0;
+	uint32_t                  val32;
+	uint64_t                  val64;
 	zval subkeys;
 	zval uids;
 
@@ -1766,21 +1766,21 @@ PHP_FUNCTION(rnp_key_get_info)
 	add_assoc_bool(return_value, "have_public", boolval);
 
 #ifdef ZEND_ENABLE_ZVAL_LONG64
-	if ((ret = rnp_key_valid_till64(kh, &longval))) {
+	if ((ret = rnp_key_valid_till64(kh, &val64))) {
 		goto done;
 	}
-	add_assoc_long(return_value, "valid_till", longval);
+	add_assoc_long(return_value, "valid_till", (zend_long)val64);
 #else
-	if ((ret = rnp_key_valid_till(kh, &longval))) {
+	if ((ret = rnp_key_valid_till(kh, &val32))) {
 		goto done;
 	}
-	add_assoc_long(return_value, "valid_till", longval);
+	add_assoc_long(return_value, "valid_till", (zend_long)val32);
 #endif
 
-	if ((ret = rnp_key_get_bits(kh, &bits))) {
+	if ((ret = rnp_key_get_bits(kh, &val32))) {
 		goto done;
 	}
-	add_assoc_long(return_value, "bits", bits);
+	add_assoc_long(return_value, "bits", (zend_long)val32);
 
 	if ((ret = rnp_key_get_alg(kh, &strval))) {
 		goto done;
@@ -1836,7 +1836,7 @@ PHP_FUNCTION(rnp_key_export)
 	ret = rnp_output_memory_get_buf(mem_output, &exported_buf, &exported_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, exported_buf, exported_len);
+		ZVAL_STRINGL(return_value, (char *)exported_buf, exported_len);
 	}
 done:
 	(void) rnp_key_handle_destroy(kh);
@@ -1906,7 +1906,7 @@ PHP_FUNCTION(rnp_key_export_autocrypt)
 	ret = rnp_output_memory_get_buf(mem_output, &exported_buf, &exported_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, exported_buf, exported_len);
+		ZVAL_STRINGL(return_value, (char *)exported_buf, exported_len);
 	}
 done:
 	(void) rnp_key_handle_destroy(kh);
@@ -1937,7 +1937,7 @@ PHP_FUNCTION(rnp_import_keys)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
@@ -2122,7 +2122,7 @@ PHP_FUNCTION(rnp_key_export_revocation)
 	ret = rnp_output_memory_get_buf(mem_output, &exported_buf, &exported_len, false);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRINGL(return_value, exported_buf, exported_len);
+		ZVAL_STRINGL(return_value, (char *)exported_buf, exported_len);
 	}
 done:
 	(void) rnp_key_handle_destroy(kh);
@@ -2152,7 +2152,7 @@ PHP_FUNCTION(rnp_import_signatures)
 
 	pffi = Z_FFI_P(zffi);
 
-	ret = rnp_input_from_memory(&mem_input, ZSTR_VAL(input), ZSTR_LEN(input), false);
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
