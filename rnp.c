@@ -1222,8 +1222,6 @@ PHP_FUNCTION(rnp_op_verify_detached)
 	rnp_input_t mem_data_input = NULL;
 	rnp_input_t mem_sig_input = NULL;
 	rnp_op_verify_t verify = NULL;
-	size_t sigcount = 0;
-	size_t i;
 
 	ZEND_PARSE_PARAMETERS_START(3, 3);
 		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
