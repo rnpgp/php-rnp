@@ -49,7 +49,8 @@
     <file name="007.phpt" role="test" />
     <file name="008.phpt" role="test" />
     <file name="009.phpt" role="test" />
-    <file name="010.phpt" role="test" />
+    <file name="010-botan.phpt" role="test" />
+    <file name="010-openssl.phpt" role="test" />
     <file name="011.phpt" role="test" />
     <file name="012.phpt" role="test" />
     <file name="013.phpt" role="test" />
