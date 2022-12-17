@@ -1,0 +1,26 @@
+name: run PHP tests
+on: [push, pull_request]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@2.22.0
+        with:
+          php-version: '8.0'
+          tools: phpize
+          extensions: json
+
+      - name: Build
+        run: |
+          phpize
+          ./configure
+          make
+          make install
+
+      - name: Run tests
+        run: |
+          echo "n" | make test
