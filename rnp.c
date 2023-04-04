@@ -1304,6 +1304,7 @@ PHP_FUNCTION(rnp_op_encrypt)
 	if (ZEND_NUM_ARGS() > 3 && options && Z_TYPE_P(options) == IS_ARRAY) {
 		zval *opt;
 		const char *compression_alg = NULL;
+		const char *cipher = NULL;
 		int compression_level = 0;
 
 		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "compression_alg", sizeof("compression_alg") - 1)) != NULL &&
@@ -1355,17 +1356,21 @@ PHP_FUNCTION(rnp_op_encrypt)
 			}
 		}
 
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "cipher", sizeof("cipher") - 1)) != NULL &&
+			Z_TYPE_P(opt) == IS_STRING) {
+			cipher = Z_STRVAL_P(opt);
+		}
+
 		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "password", sizeof("password") - 1)) != NULL &&
 			Z_TYPE_P(opt) == IS_STRING) {
-			if ((ret = rnp_op_encrypt_add_password(encrypt, Z_STRVAL_P(opt), NULL, 0, NULL))) {
+			if ((ret = rnp_op_encrypt_add_password(encrypt, Z_STRVAL_P(opt), NULL, 0, cipher))) {
 				goto done;
 			}
 			password = Z_STRVAL_P(opt);
 		}
 
-		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "cipher", sizeof("cipher") - 1)) != NULL &&
-			Z_TYPE_P(opt) == IS_STRING) {
-			if ((ret = rnp_op_encrypt_set_cipher(encrypt, Z_STRVAL_P(opt)))) {
+		if (cipher != NULL) {
+			if ((ret = rnp_op_encrypt_set_cipher(encrypt, cipher))) {
 				goto done;
 			}
 		}

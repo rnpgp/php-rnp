@@ -1,0 +1,14 @@
+= PHP RNP bindings
+
+image:https://github.com/rnpgp/php-rnp/actions/workflows/test.yml/badge.svg["Build Status", link="https://github.com/rnpgp/php-rnp/actions/workflows/test.yml"]
+
+This extension provides php bindings to the
+https://github.com/rnpgp/rnp[librnp OpenPGP library].
+
+== Requirements
+
+This extension currently requires https://github.com/rnpgp/rnp[librnp] 0.16.2 or newer.
+
+== Documentation
+
+Documentation for this extension is available in https://www.php.net/manual/en/book.rnp.php[PHP Manual].
