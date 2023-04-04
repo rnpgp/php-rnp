@@ -7,4 +7,4 @@ https://github.com/rnpgp/rnp[librnp OpenPGP library].
 
 == Requirements
 
-This extension currently requires https://github.com/rnpgp/rnp[librnp] 0.15.2 or newer.
+This extension currently requires https://github.com/rnpgp/rnp[librnp] 0.16.2 or newer.
