@@ -8,3 +8,7 @@ https://github.com/rnpgp/rnp[librnp OpenPGP library].
 == Requirements
 
 This extension currently requires https://github.com/rnpgp/rnp[librnp] 0.16.2 or newer.
+
+== Documentation
+
+Documentation for this extension is available in https://www.php.net/manual/en/book.rnp.php[PHP Manual].
