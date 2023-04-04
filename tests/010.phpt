@@ -65,7 +65,6 @@ $options = array(
 		'add_signature' => true,
 		'password' => 'password',
 		'cipher' => 'CAMELLIA192',
-		'kek_cipher' => 'CAMELLIA192',
 		'aead' => 'EAX',
 		'aead_bits' => 0,
 		//'flags' => RNP_ENCRYPT_NOWRAP
