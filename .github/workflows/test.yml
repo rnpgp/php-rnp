@@ -30,7 +30,7 @@ on:
     branches: [ main ]
     tags: [ v* ]
   repository_dispatch:
-    types: [ run-php-rnp]
+    types: [ test ]
   workflow_dispatch:
 
 concurrency:
