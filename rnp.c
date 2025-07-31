@@ -592,7 +592,7 @@ static bool php_rnp_password_callback(rnp_ffi_t        ffi,
 	}
 
 	ZVAL_NULL(&retval);
-	ZVAL_STRINGL(&passwordval, buf, buf_len);
+	ZVAL_EMPTY_STRING(&passwordval);
 
 	if (key) {
 		ret = rnp_key_get_fprint(key, &key_fp);
