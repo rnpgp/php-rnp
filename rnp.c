@@ -330,6 +330,10 @@ PHP_FUNCTION(rnp_dump_packets)
 		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
 
+	if (!ZSTR_LEN(input)) {
+		RETURN_FALSE;
+	}
+
 	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(input), ZSTR_LEN(input), false);
 
 	if (ret != RNP_SUCCESS) {
@@ -1937,6 +1941,10 @@ PHP_FUNCTION(rnp_import_keys)
 		Z_PARAM_STR(input)
 		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
+
+	if (!ZSTR_LEN(input)) {
+		RETURN_FALSE;
+	}
 
 	pffi = Z_FFI_P(zffi);
 
