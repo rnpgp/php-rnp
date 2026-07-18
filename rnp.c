@@ -1770,7 +1770,7 @@ PHP_FUNCTION(rnp_key_get_info)
 	}
 	add_assoc_bool(return_value, "have_public", boolval);
 
-#ifdef ZEND_ENABLE_ZVAL_LONG64
+#if defined(SIZEOF_ZEND_LONG) && SIZEOF_ZEND_LONG >= 8
 	if ((ret = rnp_key_valid_till64(kh, &val64))) {
 		goto done;
 	}
