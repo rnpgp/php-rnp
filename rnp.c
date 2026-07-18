@@ -613,7 +613,8 @@ static bool php_rnp_password_callback(rnp_ffi_t        ffi,
 
 	ret = RNP_ERROR_GENERIC;
 
-	if (zend_call_function(&pffi->fci, &pffi->fci_cache) != FAILURE) {
+	if (zend_call_function(&pffi->fci, &pffi->fci_cache) != FAILURE &&
+	    Z_TYPE_P(Z_REFVAL_P(&args[2])) == IS_STRING) {
 		pass_len = Z_STRLEN_P(Z_REFVAL_P(&args[2]));
 		if (pass_len < buf_len) {
 			memcpy(buf, Z_STRVAL_P(Z_REFVAL_P(&args[2])), pass_len + 1);
@@ -622,7 +623,8 @@ static bool php_rnp_password_callback(rnp_ffi_t        ffi,
 	}
 
 	zval_ptr_dtor(&retval);
-	zval_ptr_dtor(&passwordval);
+	/* passwordval is moved into the args[2] reference by ZVAL_NEW_REF
+	 * (ZVAL_COPY_VALUE semantics), so it must not be destroyed separately */
 	zval_ptr_dtor_str(&args[0]);
 	zval_ptr_dtor_str(&args[1]);
 	zval_ptr_dtor(&args[2]);
