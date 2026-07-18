@@ -62,8 +62,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install packages
-#     Already installed on GHA: build-essential libbz2-dev zlib1g-dev
-      run: sudo apt-get install cmake libbotan-2-dev libjson-c-dev
+#     build-essential is preinstalled on GHA; libbz2-dev/zlib1g-dev are not on ubuntu-24.04
+      run: sudo apt-get install cmake libbotan-2-dev libjson-c-dev libbz2-dev zlib1g-dev
 
     - name: Checkout rnp
       uses: actions/checkout@v4
