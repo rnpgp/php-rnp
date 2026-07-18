@@ -7,7 +7,8 @@ PHP_ARG_WITH([rnp],
 
 if test "$PHP_RNP" != "no"; then
 
-   PKG_CHECK_MODULES([LIBRNP], [librnp])
+   dnl librnp 0.18.1 is the security baseline (fixes CVE-2025-13470)
+   PKG_CHECK_MODULES([LIBRNP], [librnp >= 0.18.1])
    PHP_EVAL_INCLINE($LIBRNP_CFLAGS)
    PHP_EVAL_LIBLINE($LIBRNP_LIBS, RNP_SHARED_LIBADD)
 
