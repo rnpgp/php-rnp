@@ -7,6 +7,7 @@ rnp
 
 require_once "testkeys.inc";
 
+//empty input (succeeds since librnp 0.18)
 var_dump(rnp_dump_packets('', 0));
 //wrong flags
 var_dump(rnp_dump_packets($keyring1_pubring, 255));
@@ -25,7 +26,8 @@ var_dump(is_array(json_decode(rnp_dump_packets_to_json($keyring1_pubring, RNP_JS
 var_dump(is_array(json_decode(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_GRIP), true)));
 ?>
 --EXPECT--
-bool(false)
+string(13) ":empty input
+"
 bool(false)
 bool(false)
 bool(false)

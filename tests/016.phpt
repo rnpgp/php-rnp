@@ -9,13 +9,16 @@ require_once "testkeys.inc";
 
 $ffi = rnp_ffi_create('GPG', 'GPG');
 
+//empty input (succeeds with an empty key list since librnp 0.18)
 var_dump(rnp_import_keys($ffi, "", RNP_LOAD_SAVE_PUBLIC_KEYS));
 
 var_dump(rnp_import_keys($ffi, $keyring1_pubring, RNP_LOAD_SAVE_PUBLIC_KEYS));
 
 ?>
 --EXPECT--
-bool(false)
+string(15) "{
+  "keys":[]
+}"
 string(864) "{
   "keys":[
     {
