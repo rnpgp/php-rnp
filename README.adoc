@@ -7,7 +7,13 @@ https://github.com/rnpgp/rnp[librnp OpenPGP library].
 
 == Requirements
 
-This extension currently requires https://github.com/rnpgp/rnp[librnp] 0.16.2 or newer.
+This extension requires https://github.com/rnpgp/rnp[librnp] 0.18.1 or newer.
+Version 0.18.1 is the security baseline: it fixes
+https://github.com/rnpgp/rnp/security/advisories[CVE-2025-13470], a flaw that
+caused PKESK session keys to be generated without cryptographically random
+values.
+
+PHP 8.2 or newer is supported (tested up to PHP 8.5).
 
 == Documentation
 
