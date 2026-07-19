@@ -118,8 +118,8 @@ function rnp_enarmor(string $data, ?string $type = null): string|false {}
 
 function rnp_dearmor(string $data): string|false {}
 
-function rnp_calculate_iterations(string $hash, int $msec): int|false {}
-
 function rnp_key_to_json(RnpFFI $ffi, string $key_fp, int $flags = 0): array|false {}
 
 function rnp_key_packets_to_json(RnpFFI $ffi, string $key_fp, bool $secret = false, int $flags = 0): array|false {}
+
+function rnp_calculate_iterations(string $hash, int $msec): int|false {}
