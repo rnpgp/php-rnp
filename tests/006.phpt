@@ -20,10 +20,10 @@ var_dump(substr_count(rnp_dump_packets($keyring1_pubring, RNP_DUMP_MPI), "rsa e:
 var_dump(substr_count(rnp_dump_packets($keyring1_pubring, RNP_DUMP_RAW), "packet header") == 35);
 var_dump(substr_count(rnp_dump_packets($keyring1_pubring, RNP_DUMP_GRIP), "grip:") == 7);
 
-var_dump(is_array(json_decode(rnp_dump_packets_to_json($keyring1_pubring, 0), true)));
-var_dump(is_array(json_decode(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_MPI), true)));
-var_dump(is_array(json_decode(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_RAW), true)));
-var_dump(is_array(json_decode(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_GRIP), true)));
+var_dump(is_array(rnp_dump_packets_to_json($keyring1_pubring, 0)));
+var_dump(is_array(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_MPI)));
+var_dump(is_array(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_RAW)));
+var_dump(is_array(rnp_dump_packets_to_json($keyring1_pubring, RNP_JSON_DUMP_GRIP)));
 ?>
 --EXPECT--
 string(13) ":empty input

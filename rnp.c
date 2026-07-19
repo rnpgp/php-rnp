@@ -33,6 +33,7 @@
 
 #include "php.h"
 #include "ext/standard/info.h"
+#include "ext/json/php_json.h"
 #include "php_rnp.h"
 #include "rnp_arginfo.h"
 #include <rnp/rnp.h>
@@ -386,7 +387,10 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 	ret = rnp_dump_packets_to_json(mem_input, flags, &result);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRING(return_value, result);
+		if (php_json_decode(return_value, result, strlen(result), true, 512) == FAILURE) {
+			ret = RNP_ERROR_GENERIC;
+		}
+		rnp_buffer_clear(result, strlen(result));
 		rnp_buffer_destroy(result);
 	}
 
@@ -395,6 +399,117 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 	if (ret != RNP_SUCCESS) {
 		RETURN_FALSE;
 	}
+}
+
+PHP_FUNCTION(rnp_enarmor)
+{
+	zend_string *data;
+	zend_string *type = NULL;
+
+	rnp_result_t ret;
+	rnp_input_t mem_input = NULL;
+	rnp_output_t mem_output = NULL;
+	uint8_t *buf;
+	size_t buf_len;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2);
+		Z_PARAM_STR(data)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(type)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_enarmor(mem_input, mem_output, type ? ZSTR_VAL(type) : NULL);
+
+	if (ret == RNP_SUCCESS) {
+		ret = rnp_output_memory_get_buf(mem_output, &buf, &buf_len, false);
+
+		if (ret == RNP_SUCCESS) {
+			ZVAL_STRINGL(return_value, (char *)buf, buf_len);
+		}
+	}
+
+done:
+	(void) rnp_input_destroy(mem_input);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_dearmor)
+{
+	zend_string *data;
+
+	rnp_result_t ret;
+	rnp_input_t mem_input = NULL;
+	rnp_output_t mem_output = NULL;
+	uint8_t *buf;
+	size_t buf_len;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_STR(data)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_dearmor(mem_input, mem_output);
+
+	if (ret == RNP_SUCCESS) {
+		ret = rnp_output_memory_get_buf(mem_output, &buf, &buf_len, false);
+
+		if (ret == RNP_SUCCESS) {
+			ZVAL_STRINGL(return_value, (char *)buf, buf_len);
+		}
+	}
+
+done:
+	(void) rnp_input_destroy(mem_input);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_calculate_iterations)
+{
+	zend_string *hash;
+	zend_long msec;
+	size_t iterations = 0;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_STR(hash)
+		Z_PARAM_LONG(msec)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (rnp_calculate_iterations(ZSTR_VAL(hash), (size_t)msec, &iterations) != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_LONG((zend_long)iterations);
 }
 
 PHP_FUNCTION(rnp_op_generate_key)
@@ -1058,17 +1173,324 @@ done:
 	}
 }
 
+static void php_rnp_fill_signature_errors(zval *sig_array, rnp_signature_handle_t sig)
+{
+	zval errors;
+	size_t count = 0;
+	size_t i;
+
+	array_init(&errors);
+
+	if (rnp_signature_error_count(sig, &count) == RNP_SUCCESS) {
+		for (i = 0; i < count; i++) {
+			rnp_result_t sigerr = RNP_SUCCESS;
+
+			if (rnp_signature_error_at(sig, i, &sigerr) == RNP_SUCCESS) {
+				add_next_index_string(&errors, rnp_result_to_string(sigerr));
+			}
+		}
+	}
+
+	add_assoc_zval(sig_array, "errors", &errors);
+}
+
+static void php_rnp_fill_signature_subpackets(zval *sig_array, rnp_signature_handle_t sig)
+{
+	zval subpackets;
+	size_t count = 0;
+	size_t i;
+
+	array_init(&subpackets);
+
+	if (rnp_signature_subpacket_count(sig, &count) == RNP_SUCCESS) {
+		for (i = 0; i < count; i++) {
+			rnp_sig_subpacket_t subpkt = NULL;
+			zval subpkt_array;
+			uint8_t type = 0;
+			bool hashed = false;
+			bool critical = false;
+			uint8_t *data = NULL;
+			size_t data_len = 0;
+
+			if (rnp_signature_subpacket_at(sig, i, &subpkt) != RNP_SUCCESS || !subpkt) {
+				continue;
+			}
+
+			array_init(&subpkt_array);
+
+			if (rnp_signature_subpacket_info(subpkt, &type, &hashed, &critical) == RNP_SUCCESS) {
+				add_assoc_long(&subpkt_array, "type", (zend_long)type);
+				add_assoc_bool(&subpkt_array, "hashed", hashed);
+				add_assoc_bool(&subpkt_array, "critical", critical);
+			}
+
+			if (rnp_signature_subpacket_data(subpkt, &data, &data_len) == RNP_SUCCESS && data) {
+				add_assoc_stringl(&subpkt_array, "data", (char *)data, data_len);
+				rnp_buffer_destroy(data);
+			}
+
+			add_next_index_zval(&subpackets, &subpkt_array);
+
+			(void) rnp_signature_subpacket_destroy(subpkt);
+		}
+	}
+
+	add_assoc_zval(sig_array, "subpackets", &subpackets);
+}
+
+static void php_rnp_add_signature_pref_list(zval *sig_array,
+					    const char *name,
+					    size_t name_len,
+					    rnp_signature_handle_t sig,
+					    rnp_result_t (*count_fn)(rnp_signature_handle_t, size_t *),
+					    rnp_result_t (*at_fn)(rnp_signature_handle_t, size_t, char **))
+{
+	zval pref_list;
+	size_t count = 0;
+	size_t i;
+
+	array_init(&pref_list);
+
+	if (count_fn(sig, &count) == RNP_SUCCESS) {
+		for (i = 0; i < count; i++) {
+			char *alg = NULL;
+
+			if (at_fn(sig, i, &alg) == RNP_SUCCESS && alg) {
+				add_next_index_string(&pref_list, alg);
+				rnp_buffer_destroy(alg);
+			}
+		}
+	}
+
+	add_assoc_zval_ex(sig_array, name, name_len, &pref_list);
+}
+
+static rnp_result_t php_rnp_fill_signature_info(zval *sig_array,
+						rnp_signature_handle_t sig,
+						bool with_validity,
+						bool with_export)
+{
+	rnp_result_t ret;
+	char *strval = NULL;
+	char *strval2 = NULL;
+	uint32_t val32;
+	uint8_t val8;
+	uint8_t val8_2;
+	bool boolval;
+
+	if ((ret = rnp_signature_get_type(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "signature_type", strval);
+	rnp_buffer_destroy(strval);
+
+	if ((ret = rnp_signature_get_alg(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "alg", strval);
+	rnp_buffer_destroy(strval);
+
+	if ((ret = rnp_signature_get_hash_alg(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "hash", strval);
+	rnp_buffer_destroy(strval);
+
+	strval = NULL;
+	if ((ret = rnp_signature_get_keyid(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "keyid", strval ? strval : "");
+	if (strval) {
+		rnp_buffer_destroy(strval);
+	}
+
+	strval = NULL;
+	if ((ret = rnp_signature_get_key_fprint(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "key_fprint", strval ? strval : "");
+	if (strval) {
+		rnp_buffer_destroy(strval);
+	}
+
+	if ((ret = rnp_signature_get_creation(sig, &val32))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "creation_time", (zend_long)val32);
+
+	if ((ret = rnp_signature_get_expiration(sig, &val32))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "expiration_time", (zend_long)val32);
+
+	if ((ret = rnp_signature_get_features(sig, &val32))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "features", (zend_long)val32);
+
+	if ((ret = rnp_signature_get_key_flags(sig, &val32))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "key_flags", (zend_long)val32);
+
+	if ((ret = rnp_signature_get_key_expiration(sig, &val32))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "key_expiration", (zend_long)val32);
+
+	if ((ret = rnp_signature_get_primary_uid(sig, &boolval))) {
+		return ret;
+	}
+	add_assoc_bool(sig_array, "primary_uid", boolval);
+
+	if ((ret = rnp_signature_get_trust_level(sig, &val8, &val8_2))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "trust_level", (zend_long)val8);
+	add_assoc_long(sig_array, "trust_amount", (zend_long)val8_2);
+
+	strval = NULL;
+	if ((ret = rnp_signature_get_revoker(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "revoker", strval ? strval : "");
+	if (strval) {
+		rnp_buffer_destroy(strval);
+	}
+
+	strval = NULL;
+	strval2 = NULL;
+	if ((ret = rnp_signature_get_revocation_reason(sig, &strval, &strval2))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "revocation_code", strval ? strval : "");
+	if (strval) {
+		rnp_buffer_destroy(strval);
+	}
+	add_assoc_string(sig_array, "revocation_reason", strval2 ? strval2 : "");
+	if (strval2) {
+		rnp_buffer_destroy(strval2);
+	}
+
+	strval = NULL;
+	if ((ret = rnp_signature_get_key_server(sig, &strval))) {
+		return ret;
+	}
+	add_assoc_string(sig_array, "key_server", strval ? strval : "");
+	if (strval) {
+		rnp_buffer_destroy(strval);
+	}
+
+	if ((ret = rnp_signature_get_key_server_prefs(sig, &val32))) {
+		return ret;
+	}
+	add_assoc_long(sig_array, "key_server_prefs", (zend_long)val32);
+
+	php_rnp_add_signature_pref_list(sig_array, "preferred_algs", sizeof("preferred_algs") - 1,
+					sig, rnp_signature_get_preferred_alg_count,
+					rnp_signature_get_preferred_alg);
+	php_rnp_add_signature_pref_list(sig_array, "preferred_hashes", sizeof("preferred_hashes") - 1,
+					sig, rnp_signature_get_preferred_hash_count,
+					rnp_signature_get_preferred_hash);
+	php_rnp_add_signature_pref_list(sig_array, "preferred_zalgs", sizeof("preferred_zalgs") - 1,
+					sig, rnp_signature_get_preferred_zalg_count,
+					rnp_signature_get_preferred_zalg);
+
+	if (with_validity) {
+		add_assoc_string(sig_array, "validity_status",
+				 rnp_result_to_string(rnp_signature_is_valid(sig, 0)));
+	}
+
+	php_rnp_fill_signature_errors(sig_array, sig);
+	php_rnp_fill_signature_subpackets(sig_array, sig);
+
+	if (with_export) {
+		rnp_output_t mem_output = NULL;
+		uint8_t *buf = NULL;
+		size_t buf_len = 0;
+		char *json = NULL;
+
+		if (rnp_output_to_memory(&mem_output, 0) == RNP_SUCCESS) {
+			if (rnp_signature_export(sig, mem_output, 0) == RNP_SUCCESS &&
+			    rnp_output_memory_get_buf(mem_output, &buf, &buf_len, false) == RNP_SUCCESS) {
+				add_assoc_stringl(sig_array, "data", (char *)buf, buf_len);
+			}
+			(void) rnp_output_destroy(mem_output);
+		}
+
+		if (rnp_signature_packet_to_json(sig, 0, &json) == RNP_SUCCESS && json) {
+			zval json_zv;
+
+			if (php_json_decode(&json_zv, json, strlen(json), true, 512) == SUCCESS) {
+				add_assoc_zval(sig_array, "json", &json_zv);
+			}
+			rnp_buffer_clear(json, strlen(json));
+			rnp_buffer_destroy(json);
+		}
+	}
+
+	return RNP_SUCCESS;
+}
+
+static void php_rnp_fill_recipient_info(zval *recipient_array, rnp_recipient_handle_t recipient)
+{
+	char *strval = NULL;
+
+	if (rnp_recipient_get_keyid(recipient, &strval) == RNP_SUCCESS && strval) {
+		add_assoc_string(recipient_array, "keyid", strval);
+		rnp_buffer_destroy(strval);
+		strval = NULL;
+	}
+	if (rnp_recipient_get_alg(recipient, &strval) == RNP_SUCCESS && strval) {
+		add_assoc_string(recipient_array, "alg", strval);
+		rnp_buffer_destroy(strval);
+	}
+}
+
+static void php_rnp_fill_symenc_info(zval *symenc_array, rnp_symenc_handle_t symenc)
+{
+	char *strval = NULL;
+	uint32_t iterations = 0;
+
+	if (rnp_symenc_get_cipher(symenc, &strval) == RNP_SUCCESS && strval) {
+		add_assoc_string(symenc_array, "cipher", strval);
+		rnp_buffer_destroy(strval);
+		strval = NULL;
+	}
+	if (rnp_symenc_get_aead_alg(symenc, &strval) == RNP_SUCCESS && strval) {
+		add_assoc_string(symenc_array, "aead_alg", strval);
+		rnp_buffer_destroy(strval);
+		strval = NULL;
+	}
+	if (rnp_symenc_get_hash_alg(symenc, &strval) == RNP_SUCCESS && strval) {
+		add_assoc_string(symenc_array, "hash_alg", strval);
+		rnp_buffer_destroy(strval);
+		strval = NULL;
+	}
+	if (rnp_symenc_get_s2k_type(symenc, &strval) == RNP_SUCCESS && strval) {
+		add_assoc_string(symenc_array, "s2k_type", strval);
+		rnp_buffer_destroy(strval);
+	}
+	if (rnp_symenc_get_s2k_iterations(symenc, &iterations) == RNP_SUCCESS) {
+		add_assoc_long(symenc_array, "s2k_iterations", (zend_long)iterations);
+	}
+}
+
 static rnp_result_t php_rnp_fill_verify_retval(zval *return_value,
 					       rnp_op_verify_t verify,
 					       rnp_result_t verify_result,
 					       bool file_info)
 {
 	zval signatures;
+	zval recipients;
+	zval symencs;
 	rnp_result_t ret = RNP_ERROR_VERIFICATION_FAILED;
 	char *prt_mode = NULL;
 	char *prt_cipher = NULL;
 	bool valid_intgr = false;
 	size_t sigcount = 0;
+	size_t count = 0;
 	size_t i;
 
 	if ((ret = rnp_op_verify_get_signature_count(verify, &sigcount)) || !sigcount) {
@@ -1105,13 +1527,9 @@ static rnp_result_t php_rnp_fill_verify_retval(zval *return_value,
 
 	for (i = 0; i < sigcount; i++) {
 		rnp_op_verify_signature_t sig = NULL;
-		char *hash = NULL;
 		char *key_fp = NULL;
 		rnp_key_handle_t key = NULL;
 		rnp_signature_handle_t sighnd = NULL;
-		char *sigtype = NULL;
-		uint32_t creation;
-		uint32_t expiration;
 		zval sig_array_item;
 
 		array_init(&sig_array_item);
@@ -1121,18 +1539,6 @@ static rnp_result_t php_rnp_fill_verify_retval(zval *return_value,
 			goto done;
 		}
 		add_assoc_string(&sig_array_item, "verification_status", rnp_result_to_string(rnp_op_verify_signature_get_status(sig)));
-
-		if ((ret = rnp_op_verify_signature_get_times(sig, &creation, &expiration))) {
-			goto done;
-		}
-		add_assoc_long(&sig_array_item, "creation_time", creation);
-		add_assoc_long(&sig_array_item, "expiration_time", expiration);
-
-		if ((ret = rnp_op_verify_signature_get_hash(sig, &hash))) {
-			goto done;
-		}
-		add_assoc_string(&sig_array_item, "hash", hash);
-		rnp_buffer_destroy(hash);
 
 		if ((ret = rnp_op_verify_signature_get_key(sig, &key))) {
 			add_assoc_string(&sig_array_item, "signing_key", "Not found");
@@ -1150,16 +1556,79 @@ skip_key:
 			goto done;
 		}
 
-		if ((ret = rnp_signature_get_type(sighnd, &sigtype))) {
-			rnp_signature_handle_destroy(sighnd);
+		ret = php_rnp_fill_signature_info(&sig_array_item, sighnd, false, false);
+		rnp_signature_handle_destroy(sighnd);
+
+		if (ret != RNP_SUCCESS) {
 			goto done;
 		}
-		add_assoc_string(&sig_array_item, "signature_type", sigtype);
-		rnp_buffer_destroy(sigtype);
-		rnp_signature_handle_destroy(sighnd);
 	}
 
 	add_assoc_zval(return_value, "signatures", &signatures);
+
+	/* recipients of the encrypted message, if any */
+	array_init(&recipients);
+	if (rnp_op_verify_get_recipient_count(verify, &count) == RNP_SUCCESS) {
+		for (i = 0; i < count; i++) {
+			rnp_recipient_handle_t recipient = NULL;
+			zval recipient_array;
+
+			if (rnp_op_verify_get_recipient_at(verify, i, &recipient) != RNP_SUCCESS ||
+			    !recipient) {
+				continue;
+			}
+
+			array_init(&recipient_array);
+			php_rnp_fill_recipient_info(&recipient_array, recipient);
+			add_next_index_zval(&recipients, &recipient_array);
+		}
+	}
+	add_assoc_zval(return_value, "recipients", &recipients);
+
+	{
+		rnp_recipient_handle_t used_recipient = NULL;
+		zval used_recipient_array;
+
+		if (rnp_op_verify_get_used_recipient(verify, &used_recipient) == RNP_SUCCESS &&
+		    used_recipient) {
+			array_init(&used_recipient_array);
+			php_rnp_fill_recipient_info(&used_recipient_array, used_recipient);
+			add_assoc_zval(return_value, "used_recipient", &used_recipient_array);
+		} else {
+			add_assoc_null(return_value, "used_recipient");
+		}
+	}
+
+	/* password(s) the message was encrypted to, if any */
+	array_init(&symencs);
+	if (rnp_op_verify_get_symenc_count(verify, &count) == RNP_SUCCESS) {
+		for (i = 0; i < count; i++) {
+			rnp_symenc_handle_t symenc = NULL;
+			zval symenc_array;
+
+			if (rnp_op_verify_get_symenc_at(verify, i, &symenc) != RNP_SUCCESS || !symenc) {
+				continue;
+			}
+
+			array_init(&symenc_array);
+			php_rnp_fill_symenc_info(&symenc_array, symenc);
+			add_next_index_zval(&symencs, &symenc_array);
+		}
+	}
+	add_assoc_zval(return_value, "symencs", &symencs);
+
+	{
+		rnp_symenc_handle_t used_symenc = NULL;
+		zval used_symenc_array;
+
+		if (rnp_op_verify_get_used_symenc(verify, &used_symenc) == RNP_SUCCESS && used_symenc) {
+			array_init(&used_symenc_array);
+			php_rnp_fill_symenc_info(&used_symenc_array, used_symenc);
+			add_assoc_zval(return_value, "used_symenc", &used_symenc_array);
+		} else {
+			add_assoc_null(return_value, "used_symenc");
+		}
+	}
 
 done:
 	return ret;
@@ -1169,6 +1638,7 @@ PHP_FUNCTION(rnp_op_verify)
 {
 	zval *zffi;
 	zend_string *data;
+	zend_long flags = 0;
 
 	rnp_result_t ret = RNP_ERROR_VERIFICATION_FAILED;
 	rnp_result_t verify_result = RNP_ERROR_VERIFICATION_FAILED;
@@ -1177,9 +1647,11 @@ PHP_FUNCTION(rnp_op_verify)
 	rnp_output_t null_output = NULL;
 	rnp_op_verify_t verify = NULL;
 
-	ZEND_PARSE_PARAMETERS_START(2, 2);
+	ZEND_PARSE_PARAMETERS_START(2, 3);
 		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
 		Z_PARAM_STR(data)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
 
 	pffi = Z_FFI_P(zffi);
@@ -1195,6 +1667,10 @@ PHP_FUNCTION(rnp_op_verify)
 	}
 
 	if ((ret = rnp_op_verify_create(&verify, pffi->ffi, mem_input, null_output))) {
+		goto done;
+	}
+
+	if ((ret = rnp_op_verify_set_flags(verify, (uint32_t)flags))) {
 		goto done;
 	}
 
@@ -1217,6 +1693,7 @@ PHP_FUNCTION(rnp_op_verify_detached)
 	zval *zffi;
 	zend_string *data;
 	zend_string *signature;
+	zend_long flags = 0;
 
 	rnp_result_t   ret = RNP_ERROR_VERIFICATION_FAILED;
 	rnp_result_t verify_result = RNP_ERROR_VERIFICATION_FAILED;
@@ -1225,10 +1702,12 @@ PHP_FUNCTION(rnp_op_verify_detached)
 	rnp_input_t mem_sig_input = NULL;
 	rnp_op_verify_t verify = NULL;
 
-	ZEND_PARSE_PARAMETERS_START(3, 3);
+	ZEND_PARSE_PARAMETERS_START(3, 4);
 		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
 		Z_PARAM_STR(data)
 		Z_PARAM_STR(signature)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(flags)
 	ZEND_PARSE_PARAMETERS_END();
 
 	pffi = Z_FFI_P(zffi);
@@ -1244,6 +1723,10 @@ PHP_FUNCTION(rnp_op_verify_detached)
 	}
 
 	if ((ret = rnp_op_verify_detached_create(&verify, pffi->ffi, mem_data_input, mem_sig_input))) {
+		goto done;
+	}
+
+	if ((ret = rnp_op_verify_set_flags(verify, (uint32_t)flags))) {
 		goto done;
 	}
 
@@ -1617,6 +2100,49 @@ done:
 	}
 }
 
+static rnp_result_t php_rnp_fill_uid_info(zval *uid_array, rnp_uid_handle_t uidh)
+{
+	rnp_result_t ret;
+	void *data = NULL;
+	size_t data_len = 0;
+	uint32_t val32;
+	bool boolval;
+	size_t sigcount = 0;
+
+	if ((ret = rnp_uid_get_data(uidh, &data, &data_len))) {
+		return ret;
+	}
+	add_assoc_stringl(uid_array, "data", (char *)data, data_len);
+	rnp_buffer_destroy(data);
+
+	if ((ret = rnp_uid_get_type(uidh, &val32))) {
+		return ret;
+	}
+	add_assoc_long(uid_array, "type", (zend_long)val32);
+
+	if ((ret = rnp_uid_is_primary(uidh, &boolval))) {
+		return ret;
+	}
+	add_assoc_bool(uid_array, "is_primary", boolval);
+
+	if ((ret = rnp_uid_is_valid(uidh, &boolval))) {
+		return ret;
+	}
+	add_assoc_bool(uid_array, "is_valid", boolval);
+
+	if ((ret = rnp_uid_is_revoked(uidh, &boolval))) {
+		return ret;
+	}
+	add_assoc_bool(uid_array, "is_revoked", boolval);
+
+	if ((ret = rnp_uid_get_signature_count(uidh, &sigcount))) {
+		return ret;
+	}
+	add_assoc_long(uid_array, "signature_count", (zend_long)sigcount);
+
+	return RNP_SUCCESS;
+}
+
 PHP_FUNCTION(rnp_key_get_info)
 {
 	zval *zffi;
@@ -1663,17 +2189,25 @@ PHP_FUNCTION(rnp_key_get_info)
 		array_init_size(&uids, count);
 
 		for (i = 0; i < count; i++) {
-			char *uid_str = NULL;
+			rnp_uid_handle_t uidh = NULL;
+			zval uid_array;
 
-			ret = rnp_key_get_uid_at(kh, i, &uid_str);
+			ret = rnp_key_get_uid_handle_at(kh, i, &uidh);
 
-			if (ret != RNP_SUCCESS) {
+			if (ret != RNP_SUCCESS || !uidh) {
 				continue;
 			}
 
-			add_index_string(&uids, i, uid_str);
+			array_init(&uid_array);
+			ret = php_rnp_fill_uid_info(&uid_array, uidh);
+			(void) rnp_uid_handle_destroy(uidh);
 
-			rnp_buffer_destroy(uid_str);
+			if (ret != RNP_SUCCESS) {
+				zval_ptr_dtor(&uid_array);
+				continue;
+			}
+
+			add_index_zval(&uids, i, &uid_array);
 		}
 
 		add_assoc_zval(return_value, "uids", &uids);
@@ -1782,6 +2316,11 @@ PHP_FUNCTION(rnp_key_get_info)
 	add_assoc_long(return_value, "valid_till", (zend_long)val32);
 #endif
 
+	if ((ret = rnp_key_get_expiration(kh, &val32))) {
+		goto done;
+	}
+	add_assoc_long(return_value, "expiration", (zend_long)val32);
+
 	if ((ret = rnp_key_get_bits(kh, &val32))) {
 		goto done;
 	}
@@ -1792,6 +2331,35 @@ PHP_FUNCTION(rnp_key_get_info)
 	}
 	add_assoc_string(return_value, "alg", strval);
 	rnp_buffer_destroy(strval);
+
+	if ((ret = rnp_key_get_version(kh, &val32))) {
+		goto done;
+	}
+	add_assoc_long(return_value, "version", (zend_long)val32);
+
+	{
+		size_t revoker_count = 0;
+		size_t i;
+		zval revokers;
+
+		array_init(&revokers);
+
+		if ((ret = rnp_key_get_revoker_count(kh, &revoker_count))) {
+			zval_ptr_dtor(&revokers);
+			goto done;
+		}
+
+		for (i = 0; i < revoker_count; i++) {
+			char *revoker = NULL;
+
+			if (rnp_key_get_revoker_at(kh, i, &revoker) == RNP_SUCCESS && revoker) {
+				add_next_index_string(&revokers, revoker);
+				rnp_buffer_destroy(revoker);
+			}
+		}
+
+		add_assoc_zval(return_value, "revokers", &revokers);
+	}
 done:
 	if (ret != RNP_SUCCESS) {
 		zval_ptr_dtor(return_value);
@@ -2177,6 +2745,1223 @@ PHP_FUNCTION(rnp_import_signatures)
 	}
 }
 
+PHP_FUNCTION(rnp_key_get_signatures)
+{
+	zval *zffi;
+	zend_string *key_fp;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	size_t count = 0;
+	size_t i;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	if ((ret = rnp_key_get_signature_count(kh, &count))) {
+		goto done;
+	}
+
+	for (i = 0; i < count; i++) {
+		rnp_signature_handle_t sig = NULL;
+		zval sig_array_item;
+
+		if ((ret = rnp_key_get_signature_at(kh, i, &sig))) {
+			goto done;
+		}
+
+		array_init(&sig_array_item);
+		ret = php_rnp_fill_signature_info(&sig_array_item, sig, true, true);
+		(void) rnp_signature_handle_destroy(sig);
+
+		if (ret != RNP_SUCCESS) {
+			zval_ptr_dtor(&sig_array_item);
+			goto done;
+		}
+
+		add_next_index_zval(return_value, &sig_array_item);
+	}
+
+done:
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
+		RETURN_FALSE;
+	}
+}
+
+static rnp_result_t php_rnp_locate_uid_handle(rnp_key_handle_t key,
+					      const char *uid,
+					      rnp_uid_handle_t *uidh)
+{
+	rnp_result_t ret;
+	size_t count = 0;
+	size_t i;
+
+	*uidh = NULL;
+
+	if ((ret = rnp_key_get_uid_count(key, &count))) {
+		return ret;
+	}
+
+	for (i = 0; i < count; i++) {
+		char *uid_str = NULL;
+
+		if (rnp_key_get_uid_at(key, i, &uid_str) != RNP_SUCCESS || !uid_str) {
+			continue;
+		}
+
+		if (!strcmp(uid_str, uid)) {
+			rnp_buffer_destroy(uid_str);
+			return rnp_key_get_uid_handle_at(key, i, uidh);
+		}
+
+		rnp_buffer_destroy(uid_str);
+	}
+
+	return RNP_ERROR_NOT_FOUND;
+}
+
+PHP_FUNCTION(rnp_uid_get_signatures)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *uid;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	rnp_uid_handle_t uidh = NULL;
+	size_t count = 0;
+	size_t i;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_STR(uid)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = php_rnp_locate_uid_handle(kh, ZSTR_VAL(uid), &uidh);
+
+	if (ret != RNP_SUCCESS || !uidh) {
+		rnp_key_handle_destroy(kh);
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	if ((ret = rnp_uid_get_signature_count(uidh, &count))) {
+		goto done;
+	}
+
+	for (i = 0; i < count; i++) {
+		rnp_signature_handle_t sig = NULL;
+		zval sig_array_item;
+
+		if ((ret = rnp_uid_get_signature_at(uidh, i, &sig))) {
+			goto done;
+		}
+
+		array_init(&sig_array_item);
+		ret = php_rnp_fill_signature_info(&sig_array_item, sig, true, true);
+		(void) rnp_signature_handle_destroy(sig);
+
+		if (ret != RNP_SUCCESS) {
+			zval_ptr_dtor(&sig_array_item);
+			goto done;
+		}
+
+		add_next_index_zval(return_value, &sig_array_item);
+	}
+
+done:
+	(void) rnp_uid_handle_destroy(uidh);
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
+		RETURN_FALSE;
+	}
+}
+
+static rnp_result_t php_rnp_key_signature_add_pref_list(rnp_signature_handle_t sig,
+							zval *options,
+							const char *name,
+							size_t name_len,
+							rnp_result_t (*add_fn)(rnp_signature_handle_t,
+									       const char *))
+{
+	zval *list;
+	zval *item;
+	rnp_result_t ret;
+
+	if ((list = zend_hash_str_find(Z_ARRVAL_P(options), name, name_len)) == NULL ||
+	    Z_TYPE_P(list) != IS_ARRAY) {
+		return RNP_SUCCESS;
+	}
+
+	zend_hash_internal_pointer_reset(Z_ARRVAL_P(list));
+	while ((item = zend_hash_get_current_data(Z_ARRVAL_P(list)))) {
+		zend_hash_move_forward(Z_ARRVAL_P(list));
+
+		if (Z_TYPE_P(item) != IS_STRING) {
+			continue;
+		}
+
+		if ((ret = add_fn(sig, Z_STRVAL_P(item)))) {
+			return ret;
+		}
+	}
+
+	return RNP_SUCCESS;
+}
+
+static rnp_result_t php_rnp_key_signature_apply_options(rnp_signature_handle_t sig,
+							php_rnp_ffi_t *pffi,
+							zval *options)
+{
+	rnp_result_t ret;
+	zval *opt;
+	zval *opt2;
+	const char *revocation_code = NULL;
+	const char *revocation_reason = NULL;
+	bool have_trust_level = false;
+	bool have_trust_amount = false;
+	uint8_t trust_level = 0;
+	uint8_t trust_amount = 0;
+
+	if (!options || Z_TYPE_P(options) != IS_ARRAY) {
+		return RNP_SUCCESS;
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_STRING) {
+		if ((ret = rnp_key_signature_set_hash(sig, Z_STRVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "creation_time", sizeof("creation_time") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		if ((ret = rnp_key_signature_set_creation(sig, (uint32_t)Z_LVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "key_flags", sizeof("key_flags") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		if ((ret = rnp_key_signature_set_key_flags(sig, (uint32_t)Z_LVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "key_expiration", sizeof("key_expiration") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		if ((ret = rnp_key_signature_set_key_expiration(sig, (uint32_t)Z_LVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "features", sizeof("features") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		if ((ret = rnp_key_signature_set_features(sig, (uint32_t)Z_LVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((ret = php_rnp_key_signature_add_pref_list(sig, options, "preferred_algs",
+						       sizeof("preferred_algs") - 1,
+						       rnp_key_signature_add_preferred_alg))) {
+		return ret;
+	}
+
+	if ((ret = php_rnp_key_signature_add_pref_list(sig, options, "preferred_hashes",
+						       sizeof("preferred_hashes") - 1,
+						       rnp_key_signature_add_preferred_hash))) {
+		return ret;
+	}
+
+	if ((ret = php_rnp_key_signature_add_pref_list(sig, options, "preferred_zalgs",
+						       sizeof("preferred_zalgs") - 1,
+						       rnp_key_signature_add_preferred_zalg))) {
+		return ret;
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "primary_uid", sizeof("primary_uid") - 1)) != NULL &&
+	    (Z_TYPE_P(opt) == IS_TRUE || Z_TYPE_P(opt) == IS_FALSE)) {
+		if ((ret = rnp_key_signature_set_primary_uid(sig, Z_TYPE_P(opt) == IS_TRUE))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "key_server", sizeof("key_server") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_STRING) {
+		if ((ret = rnp_key_signature_set_key_server(sig, Z_STRVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "key_server_prefs", sizeof("key_server_prefs") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		if ((ret = rnp_key_signature_set_key_server_prefs(sig, (uint32_t)Z_LVAL_P(opt)))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "revocation_code", sizeof("revocation_code") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_STRING) {
+		revocation_code = Z_STRVAL_P(opt);
+	}
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "revocation_reason", sizeof("revocation_reason") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_STRING) {
+		revocation_reason = Z_STRVAL_P(opt);
+	}
+	if (revocation_code || revocation_reason) {
+		if ((ret = rnp_key_signature_set_revocation_reason(sig, revocation_code, revocation_reason))) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "revoker", sizeof("revoker") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_STRING) {
+		rnp_key_handle_t revoker = NULL;
+		uint32_t revoker_flags = 0;
+
+		if ((opt2 = zend_hash_str_find(Z_ARRVAL_P(options), "revoker_sensitive", sizeof("revoker_sensitive") - 1)) != NULL &&
+		    Z_TYPE_P(opt2) == IS_TRUE) {
+			revoker_flags |= RNP_REVOKER_SENSITIVE;
+		}
+
+		ret = rnp_locate_key(pffi->ffi, "fingerprint", Z_STRVAL_P(opt), &revoker);
+		if (ret == RNP_SUCCESS) {
+			ret = rnp_key_signature_set_revoker(sig, revoker, revoker_flags);
+		}
+		(void) rnp_key_handle_destroy(revoker);
+
+		if (ret != RNP_SUCCESS) {
+			return ret;
+		}
+	}
+
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "trust_level", sizeof("trust_level") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		have_trust_level = true;
+		trust_level = (uint8_t)Z_LVAL_P(opt);
+	}
+	if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "trust_amount", sizeof("trust_amount") - 1)) != NULL &&
+	    Z_TYPE_P(opt) == IS_LONG) {
+		have_trust_amount = true;
+		trust_amount = (uint8_t)Z_LVAL_P(opt);
+	}
+	if (have_trust_level || have_trust_amount) {
+		if ((ret = rnp_key_signature_set_trust_level(sig, trust_level, trust_amount))) {
+			return ret;
+		}
+	}
+
+	return RNP_SUCCESS;
+}
+
+PHP_FUNCTION(rnp_key_certification_create)
+{
+	zval *zffi;
+	zend_string *signer_fp;
+	zend_string *target_fp;
+	zend_string *uid;
+	zend_string *type = NULL;
+	zval *options = NULL;
+
+	rnp_result_t ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t signer = NULL;
+	rnp_key_handle_t target = NULL;
+	rnp_uid_handle_t uidh = NULL;
+	rnp_signature_handle_t sig = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(4, 6);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(signer_fp)
+		Z_PARAM_STR(target_fp)
+		Z_PARAM_STR(uid)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(type)
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(signer_fp), &signer);
+	if (ret != RNP_SUCCESS || !signer) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(target_fp), &target);
+	if (ret != RNP_SUCCESS || !target) {
+		rnp_key_handle_destroy(signer);
+		RETURN_FALSE;
+	}
+
+	ret = php_rnp_locate_uid_handle(target, ZSTR_VAL(uid), &uidh);
+	if (ret == RNP_SUCCESS) {
+		ret = rnp_key_certification_create(signer, uidh, type ? ZSTR_VAL(type) : NULL, &sig);
+		(void) rnp_uid_handle_destroy(uidh);
+	}
+
+	if (ret == RNP_SUCCESS) {
+		ret = php_rnp_key_signature_apply_options(sig, pffi, options);
+	}
+
+	if (ret != RNP_SUCCESS) {
+		if (sig) {
+			(void) rnp_signature_handle_destroy(sig);
+		}
+		rnp_key_handle_destroy(signer);
+		rnp_key_handle_destroy(target);
+		RETURN_FALSE;
+	}
+
+	object_init_ex(return_value, rnp_key_signature_t_ce);
+	Z_KEYSIG_P(return_value)->sig = sig;
+
+	rnp_key_handle_destroy(signer);
+	rnp_key_handle_destroy(target);
+}
+
+PHP_FUNCTION(rnp_key_direct_signature_create)
+{
+	zval *zffi;
+	zend_string *signer_fp;
+	zend_string *target_fp = NULL;
+	zval *options = NULL;
+
+	rnp_result_t ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t signer = NULL;
+	rnp_key_handle_t target = NULL;
+	rnp_signature_handle_t sig = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(signer_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(target_fp)
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(signer_fp), &signer);
+	if (ret != RNP_SUCCESS || !signer) {
+		RETURN_FALSE;
+	}
+
+	if (target_fp && ZSTR_LEN(target_fp)) {
+		ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(target_fp), &target);
+		if (ret != RNP_SUCCESS || !target) {
+			rnp_key_handle_destroy(signer);
+			RETURN_FALSE;
+		}
+	}
+
+	ret = rnp_key_direct_signature_create(signer, target, &sig);
+
+	if (ret == RNP_SUCCESS) {
+		ret = php_rnp_key_signature_apply_options(sig, pffi, options);
+	}
+
+	if (ret != RNP_SUCCESS) {
+		if (sig) {
+			(void) rnp_signature_handle_destroy(sig);
+		}
+		rnp_key_handle_destroy(signer);
+		rnp_key_handle_destroy(target);
+		RETURN_FALSE;
+	}
+
+	object_init_ex(return_value, rnp_key_signature_t_ce);
+	Z_KEYSIG_P(return_value)->sig = sig;
+
+	rnp_key_handle_destroy(signer);
+	rnp_key_handle_destroy(target);
+}
+
+PHP_FUNCTION(rnp_key_revocation_signature_create)
+{
+	zval *zffi;
+	zend_string *signer_fp;
+	zend_string *target_fp = NULL;
+	zval *options = NULL;
+
+	rnp_result_t ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t signer = NULL;
+	rnp_key_handle_t target = NULL;
+	rnp_signature_handle_t sig = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(signer_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(target_fp)
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(signer_fp), &signer);
+	if (ret != RNP_SUCCESS || !signer) {
+		RETURN_FALSE;
+	}
+
+	if (target_fp && ZSTR_LEN(target_fp)) {
+		ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(target_fp), &target);
+		if (ret != RNP_SUCCESS || !target) {
+			rnp_key_handle_destroy(signer);
+			RETURN_FALSE;
+		}
+	}
+
+	ret = rnp_key_revocation_signature_create(signer, target, &sig);
+
+	if (ret == RNP_SUCCESS) {
+		ret = php_rnp_key_signature_apply_options(sig, pffi, options);
+	}
+
+	if (ret != RNP_SUCCESS) {
+		if (sig) {
+			(void) rnp_signature_handle_destroy(sig);
+		}
+		rnp_key_handle_destroy(signer);
+		rnp_key_handle_destroy(target);
+		RETURN_FALSE;
+	}
+
+	object_init_ex(return_value, rnp_key_signature_t_ce);
+	Z_KEYSIG_P(return_value)->sig = sig;
+
+	rnp_key_handle_destroy(signer);
+	rnp_key_handle_destroy(target);
+}
+
+PHP_FUNCTION(rnp_key_signature_sign)
+{
+	zval *zsig;
+	php_rnp_key_signature_t *psig;
+	rnp_result_t ret;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_OBJECT_OF_CLASS(zsig, rnp_key_signature_t_ce)
+	ZEND_PARSE_PARAMETERS_END();
+
+	psig = Z_KEYSIG_P(zsig);
+	if (!psig->sig) {
+		zend_throw_error(NULL, "%s(): Attempt to sign already signed signature!", get_active_function_name());
+		RETURN_THROWS();
+	}
+
+	ret = rnp_key_signature_sign(psig->sig);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	(void) rnp_signature_handle_destroy(psig->sig);
+	psig->sig = NULL;
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_remove_signatures)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long flags;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_remove_signatures(kh, (uint32_t)flags, NULL, NULL);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_add_security_rule)
+{
+	zval *zffi;
+	zend_string *type;
+	zend_string *name;
+	zend_long flags;
+	zend_long from;
+	zend_long level;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(6, 6);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(type)
+		Z_PARAM_STR(name)
+		Z_PARAM_LONG(flags)
+		Z_PARAM_LONG(from)
+		Z_PARAM_LONG(level)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_add_security_rule(pffi->ffi, ZSTR_VAL(type), ZSTR_VAL(name),
+				    (uint32_t)flags, (uint64_t)from, (uint32_t)level);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_get_security_rule)
+{
+	zval *zffi;
+	zend_string *type;
+	zend_string *name;
+	zend_long time;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	uint32_t flags = 0;
+	uint64_t from = 0;
+	uint32_t level = 0;
+
+	ZEND_PARSE_PARAMETERS_START(4, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(type)
+		Z_PARAM_STR(name)
+		Z_PARAM_LONG(time)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_get_security_rule(pffi->ffi, ZSTR_VAL(type), ZSTR_VAL(name),
+				    (uint64_t)time, &flags, &from, &level);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+	add_assoc_long(return_value, "flags", (zend_long)flags);
+	add_assoc_long(return_value, "from", (zend_long)from);
+	add_assoc_long(return_value, "level", (zend_long)level);
+}
+
+PHP_FUNCTION(rnp_remove_security_rule)
+{
+	zval *zffi;
+	zend_string *type = NULL;
+	zend_string *name = NULL;
+	zend_long level;
+	zend_long flags;
+	zend_long from;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	size_t removed = 0;
+
+	ZEND_PARSE_PARAMETERS_START(6, 6);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR_OR_NULL(type)
+		Z_PARAM_STR_OR_NULL(name)
+		Z_PARAM_LONG(level)
+		Z_PARAM_LONG(flags)
+		Z_PARAM_LONG(from)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_remove_security_rule(pffi->ffi, type ? ZSTR_VAL(type) : NULL,
+				       name ? ZSTR_VAL(name) : NULL, (uint32_t)level,
+				       (uint32_t)flags, (uint64_t)from, &removed);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_LONG((zend_long)removed);
+}
+
+PHP_FUNCTION(rnp_set_timestamp)
+{
+	zval *zffi;
+	zend_long timestamp;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_LONG(timestamp)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_set_timestamp(pffi->ffi, (uint64_t)timestamp);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_request_password)
+{
+	zval *zffi;
+	zend_string *key_fp = NULL;
+	zend_string *context;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	char *password = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR_OR_NULL(key_fp)
+		Z_PARAM_STR(context)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	if (key_fp && ZSTR_LEN(key_fp)) {
+		ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+		if (ret != RNP_SUCCESS || !kh) {
+			RETURN_FALSE;
+		}
+	}
+
+	ret = rnp_request_password(pffi->ffi, kh, ZSTR_VAL(context), &password);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS || !password) {
+		RETURN_FALSE;
+	}
+
+	RETVAL_STRING(password);
+
+	rnp_buffer_clear(password, strlen(password));
+	rnp_buffer_destroy(password);
+}
+
+PHP_FUNCTION(rnp_key_protect)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *password;
+	zval *options = NULL;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	const char *cipher = NULL;
+	const char *cipher_mode = NULL;
+	const char *hash = NULL;
+	size_t iterations = 0;
+
+	ZEND_PARSE_PARAMETERS_START(3, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_STR(password)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	/* apply options */
+	if (ZEND_NUM_ARGS() > 3 && options && Z_TYPE_P(options) == IS_ARRAY) {
+		zval *opt;
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "cipher", sizeof("cipher") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_STRING) {
+			cipher = Z_STRVAL_P(opt);
+		}
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "mode", sizeof("mode") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_STRING) {
+			cipher_mode = Z_STRVAL_P(opt);
+		}
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_STRING) {
+			hash = Z_STRVAL_P(opt);
+		}
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "iterations", sizeof("iterations") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_LONG) {
+			iterations = (size_t)Z_LVAL_P(opt);
+		}
+	}
+
+	ret = rnp_key_protect(kh, ZSTR_VAL(password), cipher, cipher_mode, hash, iterations);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_unprotect)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *password = NULL;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(password)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_unprotect(kh, password ? ZSTR_VAL(password) : NULL);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_lock)
+{
+	zval *zffi;
+	zend_string *key_fp;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_lock(kh);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_unlock)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *password = NULL;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(password)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_unlock(kh, password ? ZSTR_VAL(password) : NULL);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_set_expiration)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long expiration;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_LONG(expiration)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_set_expiration(kh, (uint32_t)expiration);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_add_uid)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *uid;
+	zval *options = NULL;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	const char *hash = NULL;
+	uint32_t expiration = 0;
+	uint8_t key_flags = 0;
+	bool primary = false;
+
+	ZEND_PARSE_PARAMETERS_START(3, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_STR(uid)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ARRAY(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	/* apply options */
+	if (ZEND_NUM_ARGS() > 3 && options && Z_TYPE_P(options) == IS_ARRAY) {
+		zval *opt;
+
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "hash", sizeof("hash") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_STRING) {
+			hash = Z_STRVAL_P(opt);
+		}
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "expiration", sizeof("expiration") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_LONG) {
+			expiration = (uint32_t)Z_LVAL_P(opt);
+		}
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "key_flags", sizeof("key_flags") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_LONG) {
+			key_flags = (uint8_t)Z_LVAL_P(opt);
+		}
+		if ((opt = zend_hash_str_find(Z_ARRVAL_P(options), "primary", sizeof("primary") - 1)) != NULL &&
+		    Z_TYPE_P(opt) == IS_TRUE) {
+			primary = true;
+		}
+	}
+
+	ret = rnp_key_add_uid(kh, ZSTR_VAL(uid), hash, expiration, key_flags, primary);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_uid_get_info)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *uid;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	rnp_uid_handle_t uidh = NULL;
+	rnp_signature_handle_t revsig = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_STR(uid)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = php_rnp_locate_uid_handle(kh, ZSTR_VAL(uid), &uidh);
+
+	if (ret != RNP_SUCCESS || !uidh) {
+		rnp_key_handle_destroy(kh);
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	if ((ret = php_rnp_fill_uid_info(return_value, uidh))) {
+		goto done;
+	}
+
+	if (rnp_uid_get_revocation_signature(uidh, &revsig) == RNP_SUCCESS && revsig) {
+		zval revsig_array;
+
+		array_init(&revsig_array);
+		if (php_rnp_fill_signature_info(&revsig_array, revsig, true, true) == RNP_SUCCESS) {
+			add_assoc_zval(return_value, "revocation_signature", &revsig_array);
+		} else {
+			zval_ptr_dtor(&revsig_array);
+			add_assoc_null(return_value, "revocation_signature");
+		}
+		(void) rnp_signature_handle_destroy(revsig);
+	} else {
+		add_assoc_null(return_value, "revocation_signature");
+	}
+
+done:
+	(void) rnp_uid_handle_destroy(uidh);
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		zval_ptr_dtor(return_value);
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_uid_remove)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_string *uid;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	rnp_uid_handle_t uidh = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_STR(uid)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = php_rnp_locate_uid_handle(kh, ZSTR_VAL(uid), &uidh);
+
+	if (ret != RNP_SUCCESS || !uidh) {
+		rnp_key_handle_destroy(kh);
+		RETURN_FALSE;
+	}
+
+	ret = rnp_uid_remove(kh, uidh);
+
+	(void) rnp_uid_handle_destroy(uidh);
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_key_to_json)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long flags = 0;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	char *json = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_to_json(kh, (uint32_t)flags, &json);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS || !json) {
+		RETURN_FALSE;
+	}
+
+	if (php_json_decode(return_value, json, strlen(json), true, 512) == FAILURE) {
+		rnp_buffer_clear(json, strlen(json));
+		rnp_buffer_destroy(json);
+		RETURN_FALSE;
+	}
+
+	rnp_buffer_clear(json, strlen(json));
+	rnp_buffer_destroy(json);
+}
+
+PHP_FUNCTION(rnp_key_packets_to_json)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	bool secret = false;
+	zend_long flags = 0;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	char *json = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_BOOL(secret)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_packets_to_json(kh, secret, (uint32_t)flags, &json);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS || !json) {
+		RETURN_FALSE;
+	}
+
+	if (php_json_decode(return_value, json, strlen(json), true, 512) == FAILURE) {
+		rnp_buffer_clear(json, strlen(json));
+		rnp_buffer_destroy(json);
+		RETURN_FALSE;
+	}
+
+	rnp_buffer_clear(json, strlen(json));
+	rnp_buffer_destroy(json);
+}
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
@@ -2209,6 +3994,9 @@ PHP_MINFO_FUNCTION(rnp)
 zend_class_entry *rnp_ffi_t_ce;
 static zend_object_handlers rnp_object_handlers;
 
+zend_class_entry *rnp_key_signature_t_ce;
+static zend_object_handlers rnp_key_signature_object_handlers;
+
 static zend_object *rnp_create_object(zend_class_entry *class_type)
 {
 	php_rnp_ffi_t *intern = zend_object_alloc(sizeof(php_rnp_ffi_t), class_type);
@@ -2233,6 +4021,32 @@ static zend_function *rnp_get_constructor(zend_object *object)
 	return NULL;
 }
 
+static zend_object *rnp_key_signature_create_object(zend_class_entry *class_type)
+{
+	php_rnp_key_signature_t *intern = zend_object_alloc(sizeof(php_rnp_key_signature_t), class_type);
+	intern->sig = NULL;
+
+	zend_object_std_init(&intern->std, class_type);
+	intern->std.handlers = &rnp_key_signature_object_handlers;
+
+	return &intern->std;
+}
+
+static void rnp_key_signature_free_obj(zend_object *object)
+{
+	php_rnp_key_signature_t *intern = rnp_key_signature_t_from_obj(object);
+	if (intern->sig) {
+		rnp_signature_handle_destroy(intern->sig);
+	}
+	zend_object_std_dtor(&intern->std);
+}
+
+static zend_function *rnp_key_signature_get_constructor(zend_object *object)
+{
+	zend_throw_error(NULL, "Cannot directly construct RnpKeySignature, use one of the rnp_key_*_signature_create() functions instead");
+	return NULL;
+}
+
 PHP_MINIT_FUNCTION(rnp)
 {
 	rnp_ffi_t_ce = register_class_RnpFFI();
@@ -2243,6 +4057,15 @@ PHP_MINIT_FUNCTION(rnp)
 	rnp_object_handlers.clone_obj = NULL;
 	rnp_object_handlers.free_obj = rnp_free_obj;
 	rnp_object_handlers.get_constructor = rnp_get_constructor;
+
+	rnp_key_signature_t_ce = register_class_RnpKeySignature();
+	rnp_key_signature_t_ce->create_object = rnp_key_signature_create_object;
+
+	memcpy(&rnp_key_signature_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+	rnp_key_signature_object_handlers.offset = XtOffsetOf(php_rnp_key_signature_t, std);
+	rnp_key_signature_object_handlers.clone_obj = NULL;
+	rnp_key_signature_object_handlers.free_obj = rnp_key_signature_free_obj;
+	rnp_key_signature_object_handlers.get_constructor = rnp_key_signature_get_constructor;
 
 	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_PUBLIC_KEYS", RNP_LOAD_SAVE_PUBLIC_KEYS, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_LOAD_SAVE_SECRET_KEYS", RNP_LOAD_SAVE_SECRET_KEYS, CONST_CS | CONST_PERSISTENT);
@@ -2266,6 +4089,10 @@ PHP_MINIT_FUNCTION(rnp)
 	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_RAW", RNP_JSON_DUMP_RAW, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_GRIP", RNP_JSON_DUMP_GRIP, CONST_CS | CONST_PERSISTENT);
 
+	REGISTER_LONG_CONSTANT("RNP_JSON_PUBLIC_MPIS", RNP_JSON_PUBLIC_MPIS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_JSON_SECRET_MPIS", RNP_JSON_SECRET_MPIS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_JSON_SIGNATURE_MPIS", RNP_JSON_SIGNATURE_MPIS, CONST_CS | CONST_PERSISTENT);
+
 	REGISTER_LONG_CONSTANT("RNP_ENCRYPT_NOWRAP", RNP_ENCRYPT_NOWRAP, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_STRING_CONSTANT("RNP_KEYSTORE_GPG", RNP_KEYSTORE_GPG, CONST_CS | CONST_PERSISTENT);
@@ -2281,6 +4108,45 @@ PHP_MINIT_FUNCTION(rnp)
 	REGISTER_LONG_CONSTANT("RNP_KEY_REMOVE_PUBLIC", RNP_KEY_REMOVE_PUBLIC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_KEY_REMOVE_SECRET", RNP_KEY_REMOVE_SECRET, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_KEY_REMOVE_SUBKEYS", RNP_KEY_REMOVE_SUBKEYS, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT", RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_VERIFY_REQUIRE_ALL_SIGS", RNP_VERIFY_REQUIRE_ALL_SIGS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT", RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_PROHIBITED", RNP_SECURITY_PROHIBITED, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_INSECURE", RNP_SECURITY_INSECURE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_DEFAULT", RNP_SECURITY_DEFAULT, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_OVERRIDE", RNP_SECURITY_OVERRIDE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_VERIFY_KEY", RNP_SECURITY_VERIFY_KEY, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_VERIFY_DATA", RNP_SECURITY_VERIFY_DATA, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_REMOVE_ALL", RNP_SECURITY_REMOVE_ALL, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_KEY_USAGE_CERTIFY", RNP_KEY_USAGE_CERTIFY, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_USAGE_SIGN", RNP_KEY_USAGE_SIGN, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_USAGE_ENCRYPT_COMMS", RNP_KEY_USAGE_ENCRYPT_COMMS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_USAGE_ENCRYPT_STORAGE", RNP_KEY_USAGE_ENCRYPT_STORAGE, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_KEY_FEATURE_MDC", RNP_KEY_FEATURE_MDC, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_FEATURE_AEAD", RNP_KEY_FEATURE_AEAD, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_FEATURE_V5", RNP_KEY_FEATURE_V5, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_KEY_SERVER_NO_MODIFY", RNP_KEY_SERVER_NO_MODIFY, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_REVOKER_SENSITIVE", RNP_REVOKER_SENSITIVE, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_SIGNATURE_REVALIDATE", RNP_SIGNATURE_REVALIDATE, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_KEY_SIGNATURE_INVALID", RNP_KEY_SIGNATURE_INVALID, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_SIGNATURE_UNKNOWN_KEY", RNP_KEY_SIGNATURE_UNKNOWN_KEY, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_KEY_SIGNATURE_NON_SELF_SIG", RNP_KEY_SIGNATURE_NON_SELF_SIG, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_STRING_CONSTANT("RNP_CERTIFICATION_GENERIC", RNP_CERTIFICATION_GENERIC, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_CERTIFICATION_PERSONA", RNP_CERTIFICATION_PERSONA, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_CERTIFICATION_CASUAL", RNP_CERTIFICATION_CASUAL, CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("RNP_CERTIFICATION_POSITIVE", RNP_CERTIFICATION_POSITIVE, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_USER_ID", RNP_USER_ID, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_USER_ATTR", RNP_USER_ATTR, CONST_CS | CONST_PERSISTENT);
 
 	return SUCCESS;
 }
