@@ -30,7 +30,7 @@ function rnp_save_keys_to_path(RnpFFI $ffi, string $format, string $output_path,
 
 function rnp_dump_packets(string $input, int $flags): string|false {}
 
-function rnp_dump_packets_to_json(string $input, int $flags): string|false {}
+function rnp_dump_packets_to_json(string $input, int $flags): array|false {}
 
 function rnp_op_generate_key(RnpFFI $ffi, string $userid, string $key_alg, ?string $sub_alg = null, array $options = []): string|false {}
 
@@ -119,3 +119,7 @@ function rnp_enarmor(string $data, ?string $type = null): string|false {}
 function rnp_dearmor(string $data): string|false {}
 
 function rnp_calculate_iterations(string $hash, int $msec): int|false {}
+
+function rnp_key_to_json(RnpFFI $ffi, string $key_fp, int $flags = 0): array|false {}
+
+function rnp_key_packets_to_json(RnpFFI $ffi, string $key_fp, bool $secret = false, int $flags = 0): array|false {}

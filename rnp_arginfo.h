@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: aefd6254d7b78422b45a18ec856056280ba3a424 */
+ * Stub hash: 4547526c8e5fa6310b98d7cf001d0e873938076c */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -56,7 +56,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_dump_packets, 0, 2, MAY_BE_S
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_rnp_dump_packets_to_json arginfo_rnp_dump_packets
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_dump_packets_to_json, 0, 2, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, input, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_generate_key, 0, 3, MAY_BE_STRING|MAY_BE_FALSE)
 	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
@@ -288,6 +291,19 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_calculate_iterations, 0, 2, 
 	ZEND_ARG_TYPE_INFO(0, msec, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_key_to_json, 0, 2, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_key_packets_to_json, 0, 2, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, secret, _IS_BOOL, 0, "false")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
 ZEND_FUNCTION(rnp_supported_features);
@@ -343,6 +359,8 @@ ZEND_FUNCTION(rnp_uid_remove);
 ZEND_FUNCTION(rnp_enarmor);
 ZEND_FUNCTION(rnp_dearmor);
 ZEND_FUNCTION(rnp_calculate_iterations);
+ZEND_FUNCTION(rnp_key_to_json);
+ZEND_FUNCTION(rnp_key_packets_to_json);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_backend_string, arginfo_rnp_backend_string)
@@ -400,6 +418,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_enarmor, arginfo_rnp_enarmor)
 	ZEND_FE(rnp_dearmor, arginfo_rnp_dearmor)
 	ZEND_FE(rnp_calculate_iterations, arginfo_rnp_calculate_iterations)
+	ZEND_FE(rnp_key_to_json, arginfo_rnp_key_to_json)
+	ZEND_FE(rnp_key_packets_to_json, arginfo_rnp_key_packets_to_json)
 	ZEND_FE_END
 };
 

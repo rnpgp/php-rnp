@@ -33,6 +33,7 @@
 
 #include "php.h"
 #include "ext/standard/info.h"
+#include "ext/json/php_json.h"
 #include "php_rnp.h"
 #include "rnp_arginfo.h"
 #include <rnp/rnp.h>
@@ -386,7 +387,10 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 	ret = rnp_dump_packets_to_json(mem_input, flags, &result);
 
 	if (ret == RNP_SUCCESS) {
-		ZVAL_STRING(return_value, result);
+		if (php_json_decode(return_value, result, strlen(result), true, 512) == FAILURE) {
+			ret = RNP_ERROR_GENERIC;
+		}
+		rnp_buffer_clear(result, strlen(result));
 		rnp_buffer_destroy(result);
 	}
 
@@ -1405,6 +1409,7 @@ static rnp_result_t php_rnp_fill_signature_info(zval *sig_array,
 		rnp_output_t mem_output = NULL;
 		uint8_t *buf = NULL;
 		size_t buf_len = 0;
+		char *json = NULL;
 
 		if (rnp_output_to_memory(&mem_output, 0) == RNP_SUCCESS) {
 			if (rnp_signature_export(sig, mem_output, 0) == RNP_SUCCESS &&
@@ -1412,6 +1417,16 @@ static rnp_result_t php_rnp_fill_signature_info(zval *sig_array,
 				add_assoc_stringl(sig_array, "data", (char *)buf, buf_len);
 			}
 			(void) rnp_output_destroy(mem_output);
+		}
+
+		if (rnp_signature_packet_to_json(sig, 0, &json) == RNP_SUCCESS && json) {
+			zval json_zv;
+
+			if (php_json_decode(&json_zv, json, strlen(json), true, 512) == SUCCESS) {
+				add_assoc_zval(sig_array, "json", &json_zv);
+			}
+			rnp_buffer_clear(json, strlen(json));
+			rnp_buffer_destroy(json);
 		}
 	}
 
@@ -3857,6 +3872,96 @@ PHP_FUNCTION(rnp_uid_remove)
 	RETURN_TRUE;
 }
 
+PHP_FUNCTION(rnp_key_to_json)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	zend_long flags = 0;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	char *json = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_to_json(kh, (uint32_t)flags, &json);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS || !json) {
+		RETURN_FALSE;
+	}
+
+	if (php_json_decode(return_value, json, strlen(json), true, 512) == FAILURE) {
+		rnp_buffer_clear(json, strlen(json));
+		rnp_buffer_destroy(json);
+		RETURN_FALSE;
+	}
+
+	rnp_buffer_clear(json, strlen(json));
+	rnp_buffer_destroy(json);
+}
+
+PHP_FUNCTION(rnp_key_packets_to_json)
+{
+	zval *zffi;
+	zend_string *key_fp;
+	bool secret = false;
+	zend_long flags = 0;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	char *json = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(key_fp)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_BOOL(secret)
+		Z_PARAM_LONG(flags)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+	if (ret != RNP_SUCCESS || !kh) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_key_packets_to_json(kh, secret, (uint32_t)flags, &json);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS || !json) {
+		RETURN_FALSE;
+	}
+
+	if (php_json_decode(return_value, json, strlen(json), true, 512) == FAILURE) {
+		rnp_buffer_clear(json, strlen(json));
+		rnp_buffer_destroy(json);
+		RETURN_FALSE;
+	}
+
+	rnp_buffer_clear(json, strlen(json));
+	rnp_buffer_destroy(json);
+}
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
@@ -3983,6 +4088,10 @@ PHP_MINIT_FUNCTION(rnp)
 	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_MPI", RNP_JSON_DUMP_MPI, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_RAW", RNP_JSON_DUMP_RAW, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_JSON_DUMP_GRIP", RNP_JSON_DUMP_GRIP, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_JSON_PUBLIC_MPIS", RNP_JSON_PUBLIC_MPIS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_JSON_SECRET_MPIS", RNP_JSON_SECRET_MPIS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_JSON_SIGNATURE_MPIS", RNP_JSON_SIGNATURE_MPIS, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_LONG_CONSTANT("RNP_ENCRYPT_NOWRAP", RNP_ENCRYPT_NOWRAP, CONST_CS | CONST_PERSISTENT);
 
