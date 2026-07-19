@@ -32,7 +32,7 @@ function rnp_dump_packets(string $input, int $flags): string|false {}
 
 function rnp_dump_packets_to_json(string $input, int $flags): string|false {}
 
-function rnp_op_generate_key(RnpFFI $ffi, string $userid, string $key_alg, string $sub_alg = null, array $options = []): string|false {}
+function rnp_op_generate_key(RnpFFI $ffi, string $userid, string $key_alg, ?string $sub_alg = null, array $options = []): string|false {}
 
 function rnp_ffi_set_pass_provider(RnpFFI $ffi, callable $password_callback): bool {}
 
@@ -42,9 +42,9 @@ function rnp_op_sign_cleartext(RnpFFI $ffi, string $data, array $keys_fp, array 
 
 function rnp_op_sign_detached(RnpFFI $ffi, string $data, array  $keys_fp, array $options = []): string|false {}
 
-function rnp_op_verify(RnpFFI $ffi, string $data): array|false {}
+function rnp_op_verify(RnpFFI $ffi, string $data, int $flags = 0): array|false {}
 
-function rnp_op_verify_detached(RnpFFI $ffi, string $data, string $signature): array|false {}
+function rnp_op_verify_detached(RnpFFI $ffi, string $data, string $signature, int $flags = 0): array|false {}
 
 function rnp_op_encrypt(RnpFFI $ffi, string $message, array $recipient_keys_fp, array $options = []): string|false {}
 
@@ -69,3 +69,7 @@ function rnp_key_revoke(RnpFFI $ffi, string $key_fp, int $flags, array $options 
 function rnp_key_export_revocation(RnpFFI $ffi, string $key_fp, int $flags, array $options = []): string|false {}
 
 function rnp_import_signatures(RnpFFI $ffi, string $input, int $flags): string|false {}
+
+function rnp_key_get_signatures(RnpFFI $ffi, string $key_fp): array|false {}
+
+function rnp_uid_get_signatures(RnpFFI $ffi, string $key_fp, string $uid): array|false {}

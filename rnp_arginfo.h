@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 62703254b577d12678c1efdb6915deba0d55b26d */
+ * Stub hash: 78da8f41e183814f07abb5e60013c02e72f18884 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -62,7 +62,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_generate_key, 0, 3, MAY_B
 	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, userid, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, key_alg, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, sub_alg, IS_STRING, 0, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, sub_alg, IS_STRING, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
@@ -85,12 +85,14 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_verify, 0, 2, MAY_BE_ARRAY|MAY_BE_FALSE)
 	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_verify_detached, 0, 3, MAY_BE_ARRAY|MAY_BE_FALSE)
 	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, signature, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_op_encrypt, 0, 3, MAY_BE_STRING|MAY_BE_FALSE)
@@ -163,6 +165,13 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_rnp_import_signatures arginfo_rnp_import_keys
 
+#define arginfo_rnp_key_get_signatures arginfo_rnp_key_get_info
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_uid_get_signatures, 0, 3, MAY_BE_ARRAY|MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, uid, IS_STRING, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
@@ -196,7 +205,8 @@ ZEND_FUNCTION(rnp_key_remove);
 ZEND_FUNCTION(rnp_key_revoke);
 ZEND_FUNCTION(rnp_key_export_revocation);
 ZEND_FUNCTION(rnp_import_signatures);
-
+ZEND_FUNCTION(rnp_key_get_signatures);
+ZEND_FUNCTION(rnp_uid_get_signatures);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_backend_string, arginfo_rnp_backend_string)
@@ -231,11 +241,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_key_revoke, arginfo_rnp_key_revoke)
 	ZEND_FE(rnp_key_export_revocation, arginfo_rnp_key_export_revocation)
 	ZEND_FE(rnp_import_signatures, arginfo_rnp_import_signatures)
-	ZEND_FE_END
-};
-
-
-static const zend_function_entry class_RnpFFI_methods[] = {
+	ZEND_FE(rnp_key_get_signatures, arginfo_rnp_key_get_signatures)
+	ZEND_FE(rnp_uid_get_signatures, arginfo_rnp_uid_get_signatures)
 	ZEND_FE_END
 };
 
@@ -243,9 +250,8 @@ static zend_class_entry *register_class_RnpFFI(void)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_CLASS_ENTRY(ce, "RnpFFI", class_RnpFFI_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
-	class_entry->ce_flags |= ZEND_ACC_FINAL;
+	INIT_CLASS_ENTRY(ce, "RnpFFI", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
 
 	return class_entry;
 }
