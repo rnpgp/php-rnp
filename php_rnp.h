@@ -41,6 +41,22 @@ static inline php_rnp_ffi_t *rnp_ffi_t_from_obj(zend_object *obj)
 
 PHP_RNP_API extern zend_class_entry *rnp_ffi_t_ce;
 
+typedef struct php_rnp_key_signature
+{
+	rnp_signature_handle_t sig;
+	zend_object std;
+} php_rnp_key_signature_t;
+
+#define Z_KEYSIG_P(zv) \
+    ((php_rnp_key_signature_t*)((char*)(Z_OBJ_P(zv)) - XtOffsetOf(php_rnp_key_signature_t, std)))
+
+static inline php_rnp_key_signature_t *rnp_key_signature_t_from_obj(zend_object *obj)
+{
+	return ((php_rnp_key_signature_t*)((char*)(obj) - XtOffsetOf(php_rnp_key_signature_t, std)));
+}
+
+PHP_RNP_API extern zend_class_entry *rnp_key_signature_t_ce;
+
 # define PHP_RNP_VERSION "0.3.0"
 
 # if defined(ZTS) && defined(COMPILE_DL_RNP)

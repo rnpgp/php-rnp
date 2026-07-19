@@ -73,3 +73,17 @@ function rnp_import_signatures(RnpFFI $ffi, string $input, int $flags): string|f
 function rnp_key_get_signatures(RnpFFI $ffi, string $key_fp): array|false {}
 
 function rnp_uid_get_signatures(RnpFFI $ffi, string $key_fp, string $uid): array|false {}
+
+final class RnpKeySignature
+{
+}
+
+function rnp_key_certification_create(RnpFFI $ffi, string $signer_fp, string $target_key_fp, string $uid, ?string $type = null, array $options = []): RnpKeySignature|false {}
+
+function rnp_key_direct_signature_create(RnpFFI $ffi, string $signer_fp, ?string $target_key_fp = null, array $options = []): RnpKeySignature|false {}
+
+function rnp_key_revocation_signature_create(RnpFFI $ffi, string $signer_fp, ?string $target_key_fp = null, array $options = []): RnpKeySignature|false {}
+
+function rnp_key_signature_sign(RnpKeySignature $sig): bool {}
+
+function rnp_key_remove_signatures(RnpFFI $ffi, string $key_fp, int $flags): bool {}

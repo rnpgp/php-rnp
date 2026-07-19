@@ -62,6 +62,7 @@
     <file name="017.phpt" role="test" />
     <file name="018.phpt" role="test" />
     <file name="019.phpt" role="test" />
+    <file name="021.phpt" role="test" />
     <file name="checkdump.inc" role="test" />
     <file name="testkeys.inc" role="test" />
    </dir>
