@@ -1,0 +1,69 @@
+name: release
+
+on:
+  push:
+    tags: [ v* ]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install packages
+#     build-essential is preinstalled on GHA; libbz2-dev/zlib1g-dev are not on ubuntu-24.04
+      run: sudo apt-get install cmake libbotan-2-dev libjson-c-dev libbz2-dev zlib1g-dev
+
+    - name: Checkout rnp
+      uses: actions/checkout@v4
+      with:
+        repository: rnpgp/rnp
+        path: rnp
+        # build/test against the latest librnp release (the configured minimum)
+        ref: v0.18.1
+        submodules: true
+
+    - name: Configure rnp
+      run:  cmake -B rnp/build -DBUILD_TESTING=OFF -DENABLE_DOC=OFF -DBUILD_SHARED_LIBS=ON rnp
+
+    - name: Build rnp
+      run:  cmake --build rnp/build
+
+    - name: Install rnp
+      run:  sudo cmake --install rnp/build
+
+    - name: Checkout php-rnp
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        tools: phpize
+
+    - name: Validate package.xml
+      run: pear package-validate
+
+    - name: Build
+      run: |
+        phpize
+        ./configure
+        make
+        sudo make install
+
+    - name: Test
+      run: echo "n" | make test
+
+    - name: Create the PECL package
+      run: pear package
+
+    - name: Create GitHub Release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        shasum -a 256 rnp-*.tgz > SHA256SUMS
+        gh release create "$GITHUB_REF_NAME" rnp-*.tgz SHA256SUMS --generate-notes
+#       The resulting rnp-*.tgz is ready for upload to pecl.php.net
+#       (package 'rnp'), which requires a PECL account and cannot be
+#       automated from CI.

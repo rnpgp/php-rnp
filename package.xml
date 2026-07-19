@@ -16,9 +16,9 @@
   <email>tse@ribose.com</email>
   <active>yes</active>
  </lead>
- <date>2023-04-04</date>
+ <date>2026-07-19</date>
  <version>
-  <release>0.2.0</release>
+  <release>0.3.0</release>
   <api>0.1</api>
  </version>
  <stability>
@@ -27,8 +27,10 @@
  </stability>
  <license uri="https://github.com/rnpgp/php-rnp/blob/main/LICENSE">BSD 2-Clause License</license>
  <notes><![CDATA[
- * Setting symmetric cyphers for password-encrypted messages according to changes in RNP
- * Display version info
+ * Require librnp 0.18.1 or newer (fixes CVE-2025-13470 in PKESK
+   session key generation)
+ * Fix use-after-free in the FFI password callback
+ * Support PHP 8.2 through 8.5
  ]]></notes>
  <contents>
   <dir name="/">
@@ -67,7 +69,7 @@
  <dependencies>
   <required>
    <php>
-    <min>8.0.0</min>
+    <min>8.2.0</min>
    </php>
    <pearinstaller>
     <min>1.4.0</min>
@@ -77,6 +79,24 @@
  <providesextension>rnp</providesextension>
  <extsrcrelease />
  <changelog>
+  <release>
+   <version>
+    <release>0.3.0</release>
+    <api>0.1</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2026-07-19</date>
+   <license uri="https://github.com/rnpgp/php-rnp/blob/main/LICENSE">BSD 2-Clause License</license>
+   <notes><![CDATA[
+   * Require librnp 0.18.1 or newer (fixes CVE-2025-13470 in PKESK
+     session key generation)
+   * Fix use-after-free in the FFI password callback
+   * Support PHP 8.2 through 8.5
+   ]]></notes>
+  </release>
   <release>
    <version>
     <release>0.2.0</release>
