@@ -97,3 +97,19 @@ function rnp_remove_security_rule(RnpFFI $ffi, ?string $type, ?string $name, int
 function rnp_set_timestamp(RnpFFI $ffi, int $timestamp): bool {}
 
 function rnp_request_password(RnpFFI $ffi, ?string $key_fp, string $context): string|false {}
+
+function rnp_key_protect(RnpFFI $ffi, string $key_fp, string $password, array $options = []): bool {}
+
+function rnp_key_unprotect(RnpFFI $ffi, string $key_fp, ?string $password = null): bool {}
+
+function rnp_key_lock(RnpFFI $ffi, string $key_fp): bool {}
+
+function rnp_key_unlock(RnpFFI $ffi, string $key_fp, ?string $password = null): bool {}
+
+function rnp_key_set_expiration(RnpFFI $ffi, string $key_fp, int $expiration): bool {}
+
+function rnp_key_add_uid(RnpFFI $ffi, string $key_fp, string $uid, array $options = []): bool {}
+
+function rnp_uid_get_info(RnpFFI $ffi, string $key_fp, string $uid): array|false {}
+
+function rnp_uid_remove(RnpFFI $ffi, string $key_fp, string $uid): bool {}

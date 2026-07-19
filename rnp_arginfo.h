@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6cb2fb718d54b360f9aa33d2e383eece35d0d0a4 */
+ * Stub hash: dfdc99f834bd502a94d7c701da49d4b3bfbeea02 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -233,6 +233,47 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_request_password, 0, 3, MAY_
 	ZEND_ARG_TYPE_INFO(0, context, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_key_protect, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, password, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_key_unprotect, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, password, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_key_lock, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_rnp_key_unlock arginfo_rnp_key_unprotect
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_key_set_expiration, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, expiration, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_key_add_uid, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, uid, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
+#define arginfo_rnp_uid_get_info arginfo_rnp_uid_get_signatures
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_uid_remove, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, ffi, RnpFFI, 0)
+	ZEND_ARG_TYPE_INFO(0, key_fp, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, uid, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
 ZEND_FUNCTION(rnp_supported_features);
@@ -277,6 +318,14 @@ ZEND_FUNCTION(rnp_get_security_rule);
 ZEND_FUNCTION(rnp_remove_security_rule);
 ZEND_FUNCTION(rnp_set_timestamp);
 ZEND_FUNCTION(rnp_request_password);
+ZEND_FUNCTION(rnp_key_protect);
+ZEND_FUNCTION(rnp_key_unprotect);
+ZEND_FUNCTION(rnp_key_lock);
+ZEND_FUNCTION(rnp_key_unlock);
+ZEND_FUNCTION(rnp_key_set_expiration);
+ZEND_FUNCTION(rnp_key_add_uid);
+ZEND_FUNCTION(rnp_uid_get_info);
+ZEND_FUNCTION(rnp_uid_remove);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_backend_string, arginfo_rnp_backend_string)
@@ -323,6 +372,14 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_remove_security_rule, arginfo_rnp_remove_security_rule)
 	ZEND_FE(rnp_set_timestamp, arginfo_rnp_set_timestamp)
 	ZEND_FE(rnp_request_password, arginfo_rnp_request_password)
+	ZEND_FE(rnp_key_protect, arginfo_rnp_key_protect)
+	ZEND_FE(rnp_key_unprotect, arginfo_rnp_key_unprotect)
+	ZEND_FE(rnp_key_lock, arginfo_rnp_key_lock)
+	ZEND_FE(rnp_key_unlock, arginfo_rnp_key_unlock)
+	ZEND_FE(rnp_key_set_expiration, arginfo_rnp_key_set_expiration)
+	ZEND_FE(rnp_key_add_uid, arginfo_rnp_key_add_uid)
+	ZEND_FE(rnp_uid_get_info, arginfo_rnp_uid_get_info)
+	ZEND_FE(rnp_uid_remove, arginfo_rnp_uid_remove)
 	ZEND_FE_END
 };
 
