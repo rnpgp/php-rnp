@@ -27,7 +27,7 @@ rnp_ffi_destroy($ffi);
 --EXPECT--
 bool(false)
 key E95A3CBF583AA80A2CCC53AA7BC6709B15C23A4A
-array(12) {
+array(14) {
   ["uids"]=>
   array(3) {
     [0]=>
@@ -66,9 +66,14 @@ array(12) {
   int(1024)
   ["alg"]=>
   string(3) "RSA"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }
 key E332B27CAF4742A11BAA677F1ED63EE56FADC34D
-array(10) {
+array(12) {
   ["is_primary"]=>
   bool(false)
   ["is_sub"]=>
@@ -89,9 +94,14 @@ array(10) {
   int(1024)
   ["alg"]=>
   string(3) "RSA"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }
 key C5B15209940A7816A7AF3FB51D7E8A5393C997A8
-array(10) {
+array(12) {
   ["is_primary"]=>
   bool(false)
   ["is_sub"]=>
@@ -112,9 +122,14 @@ array(10) {
   int(1024)
   ["alg"]=>
   string(3) "DSA"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }
 key 5CD46D2A0BD0B8CFE0B130AE8A05B89FAD5ADED1
-array(10) {
+array(12) {
   ["is_primary"]=>
   bool(false)
   ["is_sub"]=>
@@ -135,9 +150,14 @@ array(10) {
   int(1024)
   ["alg"]=>
   string(3) "RSA"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }
 key BE1C4AB951F4C2F6B604C7F82FCADF05FFA501BB
-array(12) {
+array(14) {
   ["uids"]=>
   array(3) {
     [0]=>
@@ -174,9 +194,14 @@ array(12) {
   int(1024)
   ["alg"]=>
   string(3) "DSA"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }
 key A3E94DE61A8CB229413D348E54505A936A4A970E
-array(10) {
+array(12) {
   ["is_primary"]=>
   bool(false)
   ["is_sub"]=>
@@ -197,9 +222,14 @@ array(10) {
   int(1024)
   ["alg"]=>
   string(7) "ELGAMAL"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }
 key 57F8ED6E5C197DB63C60FFAF326EF111425D14A5
-array(10) {
+array(12) {
   ["is_primary"]=>
   bool(false)
   ["is_sub"]=>
@@ -220,4 +250,9 @@ array(10) {
   int(1024)
   ["alg"]=>
   string(7) "ELGAMAL"
+  ["version"]=>
+  int(4)
+  ["revokers"]=>
+  array(0) {
+  }
 }

@@ -2150,6 +2150,35 @@ PHP_FUNCTION(rnp_key_get_info)
 	}
 	add_assoc_string(return_value, "alg", strval);
 	rnp_buffer_destroy(strval);
+
+	if ((ret = rnp_key_get_version(kh, &val32))) {
+		goto done;
+	}
+	add_assoc_long(return_value, "version", (zend_long)val32);
+
+	{
+		size_t revoker_count = 0;
+		size_t i;
+		zval revokers;
+
+		array_init(&revokers);
+
+		if ((ret = rnp_key_get_revoker_count(kh, &revoker_count))) {
+			zval_ptr_dtor(&revokers);
+			goto done;
+		}
+
+		for (i = 0; i < revoker_count; i++) {
+			char *revoker = NULL;
+
+			if (rnp_key_get_revoker_at(kh, i, &revoker) == RNP_SUCCESS && revoker) {
+				add_next_index_string(&revokers, revoker);
+				rnp_buffer_destroy(revoker);
+			}
+		}
+
+		add_assoc_zval(return_value, "revokers", &revokers);
+	}
 done:
 	if (ret != RNP_SUCCESS) {
 		zval_ptr_dtor(return_value);
