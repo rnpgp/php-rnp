@@ -1508,7 +1508,6 @@ done:
 	return ret;
 }
 
-
 PHP_FUNCTION(rnp_op_verify)
 {
 	zval *zffi;
@@ -3147,6 +3146,174 @@ PHP_FUNCTION(rnp_key_remove_signatures)
 	RETURN_TRUE;
 }
 
+PHP_FUNCTION(rnp_add_security_rule)
+{
+	zval *zffi;
+	zend_string *type;
+	zend_string *name;
+	zend_long flags;
+	zend_long from;
+	zend_long level;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(6, 6);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(type)
+		Z_PARAM_STR(name)
+		Z_PARAM_LONG(flags)
+		Z_PARAM_LONG(from)
+		Z_PARAM_LONG(level)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_add_security_rule(pffi->ffi, ZSTR_VAL(type), ZSTR_VAL(name),
+				    (uint32_t)flags, (uint64_t)from, (uint32_t)level);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_get_security_rule)
+{
+	zval *zffi;
+	zend_string *type;
+	zend_string *name;
+	zend_long time;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	uint32_t flags = 0;
+	uint64_t from = 0;
+	uint32_t level = 0;
+
+	ZEND_PARSE_PARAMETERS_START(4, 4);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR(type)
+		Z_PARAM_STR(name)
+		Z_PARAM_LONG(time)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_get_security_rule(pffi->ffi, ZSTR_VAL(type), ZSTR_VAL(name),
+				    (uint64_t)time, &flags, &from, &level);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+	add_assoc_long(return_value, "flags", (zend_long)flags);
+	add_assoc_long(return_value, "from", (zend_long)from);
+	add_assoc_long(return_value, "level", (zend_long)level);
+}
+
+PHP_FUNCTION(rnp_remove_security_rule)
+{
+	zval *zffi;
+	zend_string *type = NULL;
+	zend_string *name = NULL;
+	zend_long level;
+	zend_long flags;
+	zend_long from;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	size_t removed = 0;
+
+	ZEND_PARSE_PARAMETERS_START(6, 6);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR_OR_NULL(type)
+		Z_PARAM_STR_OR_NULL(name)
+		Z_PARAM_LONG(level)
+		Z_PARAM_LONG(flags)
+		Z_PARAM_LONG(from)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_remove_security_rule(pffi->ffi, type ? ZSTR_VAL(type) : NULL,
+				       name ? ZSTR_VAL(name) : NULL, (uint32_t)level,
+				       (uint32_t)flags, (uint64_t)from, &removed);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_LONG((zend_long)removed);
+}
+
+PHP_FUNCTION(rnp_set_timestamp)
+{
+	zval *zffi;
+	zend_long timestamp;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_LONG(timestamp)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	ret = rnp_set_timestamp(pffi->ffi, (uint64_t)timestamp);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_TRUE;
+}
+
+PHP_FUNCTION(rnp_request_password)
+{
+	zval *zffi;
+	zend_string *key_fp = NULL;
+	zend_string *context;
+
+	rnp_result_t   ret;
+	php_rnp_ffi_t *pffi;
+	rnp_key_handle_t kh = NULL;
+	char *password = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(3, 3);
+		Z_PARAM_OBJECT_OF_CLASS(zffi, rnp_ffi_t_ce)
+		Z_PARAM_STR_OR_NULL(key_fp)
+		Z_PARAM_STR(context)
+	ZEND_PARSE_PARAMETERS_END();
+
+	pffi = Z_FFI_P(zffi);
+
+	if (key_fp && ZSTR_LEN(key_fp)) {
+		ret = rnp_locate_key(pffi->ffi, "fingerprint", ZSTR_VAL(key_fp), &kh);
+
+		if (ret != RNP_SUCCESS || !kh) {
+			RETURN_FALSE;
+		}
+	}
+
+	ret = rnp_request_password(pffi->ffi, kh, ZSTR_VAL(context), &password);
+
+	(void) rnp_key_handle_destroy(kh);
+
+	if (ret != RNP_SUCCESS || !password) {
+		RETURN_FALSE;
+	}
+
+	RETVAL_STRING(password);
+
+	rnp_buffer_clear(password, strlen(password));
+	rnp_buffer_destroy(password);
+}
+
 /* {{{ PHP_RINIT_FUNCTION */
 PHP_RINIT_FUNCTION(rnp)
 {
@@ -3294,7 +3461,13 @@ PHP_MINIT_FUNCTION(rnp)
 	REGISTER_LONG_CONSTANT("RNP_VERIFY_REQUIRE_ALL_SIGS", RNP_VERIFY_REQUIRE_ALL_SIGS, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT", RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT, CONST_CS | CONST_PERSISTENT);
 
-	REGISTER_LONG_CONSTANT("RNP_SIGNATURE_REVALIDATE", RNP_SIGNATURE_REVALIDATE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_PROHIBITED", RNP_SECURITY_PROHIBITED, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_INSECURE", RNP_SECURITY_INSECURE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_DEFAULT", RNP_SECURITY_DEFAULT, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_OVERRIDE", RNP_SECURITY_OVERRIDE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_VERIFY_KEY", RNP_SECURITY_VERIFY_KEY, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_VERIFY_DATA", RNP_SECURITY_VERIFY_DATA, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RNP_SECURITY_REMOVE_ALL", RNP_SECURITY_REMOVE_ALL, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_LONG_CONSTANT("RNP_KEY_USAGE_CERTIFY", RNP_KEY_USAGE_CERTIFY, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_KEY_USAGE_SIGN", RNP_KEY_USAGE_SIGN, CONST_CS | CONST_PERSISTENT);
@@ -3308,6 +3481,8 @@ PHP_MINIT_FUNCTION(rnp)
 	REGISTER_LONG_CONSTANT("RNP_KEY_SERVER_NO_MODIFY", RNP_KEY_SERVER_NO_MODIFY, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_LONG_CONSTANT("RNP_REVOKER_SENSITIVE", RNP_REVOKER_SENSITIVE, CONST_CS | CONST_PERSISTENT);
+
+	REGISTER_LONG_CONSTANT("RNP_SIGNATURE_REVALIDATE", RNP_SIGNATURE_REVALIDATE, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_LONG_CONSTANT("RNP_KEY_SIGNATURE_INVALID", RNP_KEY_SIGNATURE_INVALID, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RNP_KEY_SIGNATURE_UNKNOWN_KEY", RNP_KEY_SIGNATURE_UNKNOWN_KEY, CONST_CS | CONST_PERSISTENT);

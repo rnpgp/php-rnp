@@ -87,3 +87,13 @@ function rnp_key_revocation_signature_create(RnpFFI $ffi, string $signer_fp, ?st
 function rnp_key_signature_sign(RnpKeySignature $sig): bool {}
 
 function rnp_key_remove_signatures(RnpFFI $ffi, string $key_fp, int $flags): bool {}
+
+function rnp_add_security_rule(RnpFFI $ffi, string $type, string $name, int $flags, int $from, int $level): bool {}
+
+function rnp_get_security_rule(RnpFFI $ffi, string $type, string $name, int $time): array|false {}
+
+function rnp_remove_security_rule(RnpFFI $ffi, ?string $type, ?string $name, int $level, int $flags, int $from): int|false {}
+
+function rnp_set_timestamp(RnpFFI $ffi, int $timestamp): bool {}
+
+function rnp_request_password(RnpFFI $ffi, ?string $key_fp, string $context): string|false {}
