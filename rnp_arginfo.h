@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: dfdc99f834bd502a94d7c701da49d4b3bfbeea02 */
+ * Stub hash: aefd6254d7b78422b45a18ec856056280ba3a424 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_backend_string, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -274,6 +274,20 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rnp_uid_remove, 0, 3, _IS_BOOL, 
 	ZEND_ARG_TYPE_INFO(0, uid, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_enarmor, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_dearmor, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_rnp_calculate_iterations, 0, 2, MAY_BE_LONG|MAY_BE_FALSE)
+	ZEND_ARG_TYPE_INFO(0, hash, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, msec, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_FUNCTION(rnp_backend_string);
 ZEND_FUNCTION(rnp_backend_version);
 ZEND_FUNCTION(rnp_supported_features);
@@ -326,6 +340,9 @@ ZEND_FUNCTION(rnp_key_set_expiration);
 ZEND_FUNCTION(rnp_key_add_uid);
 ZEND_FUNCTION(rnp_uid_get_info);
 ZEND_FUNCTION(rnp_uid_remove);
+ZEND_FUNCTION(rnp_enarmor);
+ZEND_FUNCTION(rnp_dearmor);
+ZEND_FUNCTION(rnp_calculate_iterations);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_backend_string, arginfo_rnp_backend_string)
@@ -380,6 +397,9 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(rnp_key_add_uid, arginfo_rnp_key_add_uid)
 	ZEND_FE(rnp_uid_get_info, arginfo_rnp_uid_get_info)
 	ZEND_FE(rnp_uid_remove, arginfo_rnp_uid_remove)
+	ZEND_FE(rnp_enarmor, arginfo_rnp_enarmor)
+	ZEND_FE(rnp_dearmor, arginfo_rnp_dearmor)
+	ZEND_FE(rnp_calculate_iterations, arginfo_rnp_calculate_iterations)
 	ZEND_FE_END
 };
 

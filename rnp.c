@@ -397,6 +397,117 @@ PHP_FUNCTION(rnp_dump_packets_to_json)
 	}
 }
 
+PHP_FUNCTION(rnp_enarmor)
+{
+	zend_string *data;
+	zend_string *type = NULL;
+
+	rnp_result_t ret;
+	rnp_input_t mem_input = NULL;
+	rnp_output_t mem_output = NULL;
+	uint8_t *buf;
+	size_t buf_len;
+
+	ZEND_PARSE_PARAMETERS_START(1, 2);
+		Z_PARAM_STR(data)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR_OR_NULL(type)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_enarmor(mem_input, mem_output, type ? ZSTR_VAL(type) : NULL);
+
+	if (ret == RNP_SUCCESS) {
+		ret = rnp_output_memory_get_buf(mem_output, &buf, &buf_len, false);
+
+		if (ret == RNP_SUCCESS) {
+			ZVAL_STRINGL(return_value, (char *)buf, buf_len);
+		}
+	}
+
+done:
+	(void) rnp_input_destroy(mem_input);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_dearmor)
+{
+	zend_string *data;
+
+	rnp_result_t ret;
+	rnp_input_t mem_input = NULL;
+	rnp_output_t mem_output = NULL;
+	uint8_t *buf;
+	size_t buf_len;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_STR(data)
+	ZEND_PARSE_PARAMETERS_END();
+
+	ret = rnp_input_from_memory(&mem_input, (uint8_t *)ZSTR_VAL(data), ZSTR_LEN(data), false);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	ret = rnp_output_to_memory(&mem_output, 0);
+
+	if (ret != RNP_SUCCESS) {
+		goto done;
+	}
+
+	ret = rnp_dearmor(mem_input, mem_output);
+
+	if (ret == RNP_SUCCESS) {
+		ret = rnp_output_memory_get_buf(mem_output, &buf, &buf_len, false);
+
+		if (ret == RNP_SUCCESS) {
+			ZVAL_STRINGL(return_value, (char *)buf, buf_len);
+		}
+	}
+
+done:
+	(void) rnp_input_destroy(mem_input);
+	(void) rnp_output_destroy(mem_output);
+
+	if (ret != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(rnp_calculate_iterations)
+{
+	zend_string *hash;
+	zend_long msec;
+	size_t iterations = 0;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_STR(hash)
+		Z_PARAM_LONG(msec)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if (rnp_calculate_iterations(ZSTR_VAL(hash), (size_t)msec, &iterations) != RNP_SUCCESS) {
+		RETURN_FALSE;
+	}
+
+	RETURN_LONG((zend_long)iterations);
+}
+
 PHP_FUNCTION(rnp_op_generate_key)
 {
 	zval *zffi;

@@ -113,3 +113,9 @@ function rnp_key_add_uid(RnpFFI $ffi, string $key_fp, string $uid, array $option
 function rnp_uid_get_info(RnpFFI $ffi, string $key_fp, string $uid): array|false {}
 
 function rnp_uid_remove(RnpFFI $ffi, string $key_fp, string $uid): bool {}
+
+function rnp_enarmor(string $data, ?string $type = null): string|false {}
+
+function rnp_dearmor(string $data): string|false {}
+
+function rnp_calculate_iterations(string $hash, int $msec): int|false {}
