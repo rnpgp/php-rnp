@@ -1,10 +1,10 @@
 --TEST--
-encrypt/decrypt test
+encrypt/decrypt test - openssl backend
 --EXTENSIONS--
 rnp
 --SKIPIF--
 <?php
-if (!strcasecmp(rnp_backend_string(), "openssl")) die("skip OpenSSL backend");
+if (strcasecmp(rnp_backend_string(), "openssl") != 0) die("Skip: not an OpenSSL backend");
 ?>
 --CAPTURE_STDIO--
 STDIN STDOUT
@@ -64,17 +64,11 @@ $options = array(
 		'file_mtime' => 321337,
 		'add_signature' => true,
 		'password' => 'password',
-		'cipher' => 'CAMELLIA192',
-		'aead' => 'EAX',
-		'aead_bits' => 0,
-		//'flags' => RNP_ENCRYPT_NOWRAP
 		);
 
 $encrypted_message = rnp_op_encrypt($ffi, $message, array($key1, $key2), $options);
 
 rnptest_checkdump($encrypted_message, "armored input", 1);
-rnptest_checkdump($encrypted_message, "aead algorithm: 1 (EAX)", 2);
-rnptest_checkdump($encrypted_message, "12 (Camellia-192)", 2);
 
 $verify_results = rnp_op_verify($ffi, $encrypted_message);
 
@@ -112,8 +106,6 @@ bool(false)
 bool(true)
 bool(true)
 armored input
-aead algorithm: 1 (EAX)
-12 (Camellia-192)
 bool(true)
 int(1234337)
 int(2147483647)
