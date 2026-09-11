@@ -32,11 +32,11 @@ typedef struct php_rnp_ffi
 } php_rnp_ffi_t;
 
 #define Z_FFI_P(zv) \
-    ((php_rnp_ffi_t*)((char*)(Z_OBJ_P(zv)) - XtOffsetOf(php_rnp_ffi_t, std)))
+    ((php_rnp_ffi_t*)((char*)(Z_OBJ_P(zv)) - offsetof(php_rnp_ffi_t, std)))
 
 static inline php_rnp_ffi_t *rnp_ffi_t_from_obj(zend_object *obj)
 {
-	return ((php_rnp_ffi_t*)((char*)(obj) - XtOffsetOf(php_rnp_ffi_t, std)));
+	return ((php_rnp_ffi_t*)((char*)(obj) - offsetof(php_rnp_ffi_t, std)));
 }
 
 PHP_RNP_API extern zend_class_entry *rnp_ffi_t_ce;
