@@ -2239,7 +2239,7 @@ PHP_MINIT_FUNCTION(rnp)
 	rnp_ffi_t_ce->create_object = rnp_create_object;
 
 	memcpy(&rnp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-	rnp_object_handlers.offset = XtOffsetOf(php_rnp_ffi_t, std);
+	rnp_object_handlers.offset = offsetof(php_rnp_ffi_t, std);
 	rnp_object_handlers.clone_obj = NULL;
 	rnp_object_handlers.free_obj = rnp_free_obj;
 	rnp_object_handlers.get_constructor = rnp_get_constructor;
